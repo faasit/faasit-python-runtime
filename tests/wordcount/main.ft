@@ -1,0 +1,52 @@
+import (
+  . "std/faas"
+)
+
+@function threaded_output_function {
+  runtime = "python"
+}
+
+@function threaded_input_function {
+  runtime = "python"
+}
+
+@function mapper_handler {
+  runtime = "python"
+}
+
+@function reducer_handler {
+  runtime = "python"
+}
+
+@workflow WordCountFlow {
+  // env.FAASIT_WORKFLOW_FUNC = split
+  functions = [threaded_output_function, threaded_input_function, mapper_handler, reducer_handler]
+
+  // workflow spec runtime
+  runtime = "python"
+  codeDir = "./code"
+}
+
+@application WordCount {
+  workflow = WordCountFlow
+  defaultProvider = Local
+  providers= [Local, Knative]
+
+  // used by `ft run`
+  inputExamples = [
+    {
+      value = {
+        text = "Hello world this is a happy day"
+        batchSize = 3
+      }
+    }
+  ]
+}
+
+@provider Local {
+  kind = "local"
+}
+
+@provider Knative {
+  kind = "knative"
+}
