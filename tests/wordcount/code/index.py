@@ -26,7 +26,7 @@ async def threaded_output_function(frt: FaasitRuntime):
     })
 
 @function
-async def threaded_input_function(frt:FaasitRuntime):
+async def threaded_input_function(frt: FaasitRuntime):
     suc = True
     input = frt.input()
     key_name = input.get('key_name',None)
@@ -186,7 +186,7 @@ async def reducer_handler(frt: FaasitRuntime):
     })
 
 @function
-async def executor(frt:FaasitRuntime):
+async def executor(frt: FaasitRuntime):
     mapper_stage : str = 'stage0'
     tasks = []
     for i in range(4):

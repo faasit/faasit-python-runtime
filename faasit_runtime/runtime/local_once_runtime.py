@@ -152,6 +152,7 @@ class LocalOnceRuntime(FaasitRuntime):
         # create our own simple file lock since we may debug in Windows environment
         def _acquire_filelock(self, file_path):
             lock_path = file_path + ".lock"
+            os.makedirs(os.path.dirname(lock_path), exist_ok=True)
             while os.path.exists(lock_path):
                 time.sleep(0.001)
             with open(lock_path, "wb") as f:
