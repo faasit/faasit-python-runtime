@@ -16,6 +16,7 @@ from faasit_runtime.utils import (
 )
 import faasit_runtime.workflow as rt_workflow
 from typing import Callable, Set, Any
+import asyncio
 
 type_Function = Callable[[Any], FaasitResult]
 type_WorkFlow = Callable[[rt_workflow.WorkFlowBuilder], rt_workflow.WorkFlow]
@@ -28,14 +29,12 @@ def function(fn: type_Function):
         case 'local':
             async def local_function(event,metadata:FaasitRuntimeMetadata = None) -> FaasitResult:
                 frt = LocalRuntime(event,metadata)
-                result = await fn(frt)
-                await callback(result, frt)
-                return result
+                return await fn(frt)
             return local_function
         case 'aliyun':
-            def aliyun_function(arg0, arg1):
+            async def aliyun_function(arg0, arg1):
                 frt = AliyunRuntime(arg0, arg1)
-                return fn(frt)
+                return await fn(frt)
             return aliyun_function
         case 'knative':
             async def kn_function(event) -> FaasitResult:
@@ -51,7 +50,6 @@ def function(fn: type_Function):
                                ):
                 frt = LocalOnceRuntime(event, workflow_runner, metadata)
                 result = await fn(frt)
-                await callback(result, frt)
                 return result
             return local_function
         case _:
@@ -64,14 +62,14 @@ def workflow(fn: type_WorkFlow) -> rt_workflow.WorkFlow:
         
 
 def create_handler(fn : type_Function | rt_workflow.WorkFlow):
+    container_conf = get_function_container_config()
     if type(fn) == rt_workflow.WorkFlow:
         runner = rt_workflow.WorkFlowRunner(fn)
-        container_conf = get_function_container_config()
         match container_conf['provider']:
             case 'local':
                 async def handler(event:dict, metadata=None):
                     nonlocal runner
-                    metadata = createFaasitRuntimeMetadata(container_conf['funcName']) if metadata == None else FaasitRuntimeMetadata(**metadata)
+                    metadata = createFaasitRuntimeMetadata(container_conf['funcName']) if metadata == None else metadata
                     return await runner.run(event, metadata)
                 return handler
             case 'aliyun'| 'aws'| 'knative':
@@ -82,13 +80,18 @@ def create_handler(fn : type_Function | rt_workflow.WorkFlow):
             case 'local-once':
                 async def handler(event: dict):
                     nonlocal runner
-                    result = await runner.run(event, runner, createFaasitRuntimeMetadata(container_conf['funcName']))
-                    return result
+                    return await runner.run(event, runner, createFaasitRuntimeMetadata(container_conf['funcName']))
                 return handler
         return handler
     else: #type(fn) == type_Function:
-        async def handler(event: dict, *args):
-            return await fn(event, *args)
-        return handler
+        match container_conf['provider']:
+            case 'aliyun':
+                def handler(event: dict, *args):
+                    return asyncio.run(fn(event, *args))
+                return handler
+            case _:
+                async def handler(event: dict, *args):
+                    return await fn(event, *args)
+                return handler
 
 __all__ = ["function","workflow","durable","create_handler"]
