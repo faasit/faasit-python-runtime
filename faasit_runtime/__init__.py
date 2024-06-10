@@ -12,19 +12,17 @@ from faasit_runtime.runtime import (
 )
 from faasit_runtime.utils import (
     get_function_container_config,
-    callback
+    callback,
 )
-import faasit_runtime.workflow as rt_workflow
+from faasit_runtime.workflow import Workflow,Route,RouteBuilder
 from typing import Callable, Set, Any
 import asyncio
+import inspect
 
 type_Function = Callable[[Any], FaasitResult]
-type_WorkFlow = Callable[[rt_workflow.WorkFlowBuilder], rt_workflow.WorkFlow]
 
-def function(fn: type_Function):
-    # Read Config for different runtimes
+def transformfunction(fn: type_Function) -> type_Function:
     containerConf = get_function_container_config()
-
     match containerConf['provider']:
         case 'local':
             async def local_function(event,metadata:FaasitRuntimeMetadata = None) -> FaasitResult:
@@ -44,54 +42,86 @@ def function(fn: type_Function):
         case 'aws':
             frt = FaasitRuntime(containerConf)
         case 'local-once':
-            async def local_function(event, 
+            async def localonce_async_function(event, 
                                workflow_runner = None,
                                metadata: FaasitRuntimeMetadata = None
                                ):
                 frt = LocalOnceRuntime(event, workflow_runner, metadata)
                 result = await fn(frt)
                 return result
-            return local_function
+            def localonce_function(event, 
+                               workflow_runner = None,
+                               metadata: FaasitRuntimeMetadata = None
+                               ):
+                frt = LocalOnceRuntime(event, workflow_runner, metadata)
+                result = fn(frt)
+                return result
+            if inspect.iscoroutinefunction(fn):
+                return localonce_async_function
+            else:
+                return localonce_function
         case _:
             raise ValueError(f"Invalid provider {containerConf['provider']}")
 
-def workflow(fn: type_WorkFlow) -> rt_workflow.WorkFlow:
-    builder = rt_workflow.WorkFlowBuilder()
-    workflow = fn(builder)
-    return workflow
+routeBuilder = RouteBuilder()
+
+def function(*args, **kwargs):
+    # Read Config for different runtimes
+    if kwargs.get('name') is not None:
+        fn_name = kwargs.get('name')
+        def function(fn: type_Function) -> type_Function:
+            new_func = transformfunction(fn)
+            routeBuilder.func(fn_name).set_handler(new_func)
+            return new_func
+
+        return function
+    else:
+        fn = args[0]
+        new_func = transformfunction(fn)
+        routeBuilder.func(fn.__name__).set_handler(new_func)
+        return new_func
+
+    
+def workflow(fn) -> Workflow:
+    route = routeBuilder.build()
+    wf = Workflow(route)
+    r  = fn(wf)
+    wf.end_with(r)
+    return wf
         
 
-def create_handler(fn : type_Function | rt_workflow.WorkFlow):
+def create_handler(fn_or_workflow : type_Function | Workflow):
     container_conf = get_function_container_config()
-    if type(fn) == rt_workflow.WorkFlow:
-        runner = rt_workflow.WorkFlowRunner(fn)
+    if isinstance(fn_or_workflow, Workflow):
+        workflow = fn_or_workflow
         match container_conf['provider']:
             case 'local':
-                async def handler(event:dict, metadata=None):
-                    nonlocal runner
-                    metadata = createFaasitRuntimeMetadata(container_conf['funcName']) if metadata == None else metadata
-                    return await runner.run(event, metadata)
+                async def handler(event:dict, metadata=None):...
+                    # metadata = createFaasitRuntimeMetadata(container_conf['funcName']) if metadata == None else metadata
+                    # return await runner.run(event, metadata)
                 return handler
             case 'aliyun'| 'aws'| 'knative':
                 async def handler(event:dict):
-                    nonlocal runner
-                    return await runner.run(event)
+                    ...
+                    # nonlocal runner
+                    # return await runner.run(event)
                 return handler
             case 'local-once':
-                async def handler(event: dict):
-                    nonlocal runner
-                    return await runner.run(event, runner, createFaasitRuntimeMetadata(container_conf['funcName']))
+                def handler(event: dict):
+                    
+                    result = workflow.execute(event)
+                    return result
                 return handler
         return handler
     else: #type(fn) == type_Function:
         match container_conf['provider']:
             case 'aliyun':
                 def handler(event: dict, *args):
-                    return asyncio.run(fn(event, *args))
+                    return asyncio.run(fn_or_workflow(event, *args))
                 return handler
             case _:
                 async def handler(event: dict, *args):
-                    return await fn(event, *args)
+                    return await fn_or_workflow(event, *args)
                 return handler
 
 __all__ = ["function","workflow","durable","create_handler"]

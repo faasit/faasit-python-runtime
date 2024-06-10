@@ -9,7 +9,7 @@ from faasit_runtime.runtime.faasit_runtime import (
     InputType,
     FaasitRuntimeMetadata,
 )
-from faasit_runtime.workflow import WorkFlowRunner
+from faasit_runtime.workflow import RouteRunner
 from typing import Any, List
 import asyncio
 
@@ -17,7 +17,7 @@ class LocalOnceRuntime(FaasitRuntime):
     name: str = 'local-once'
     def __init__(self, 
                  data, 
-                 workflow_runner: WorkFlowRunner = None, 
+                 workflow_runner: RouteRunner = None, 
                  metadata: FaasitRuntimeMetadata = None) -> None:
         super().__init__()
         self._input = data
@@ -25,7 +25,7 @@ class LocalOnceRuntime(FaasitRuntime):
         self._metadata = metadata
         self._storage = self.LocalStorage()
 
-    def set_workflow(self, workflow_runner: WorkFlowRunner):
+    def set_workflow(self, workflow_runner: RouteRunner):
         self._workflow_runner = workflow_runner
         return workflow_runner
 
