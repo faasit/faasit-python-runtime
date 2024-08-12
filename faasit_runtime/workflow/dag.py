@@ -45,6 +45,9 @@ class ControlNode(DAGNode):
     def calculate(self):
         res = self.fn(self.datas)
         self.data_node.set_value(res)
+        self.data_node.try_parent_ready()
+        if self.data_node.is_ready():
+            self.data_node.set_ready()
         return self.get_data_node()
     
     def describe(self) -> str:
@@ -63,11 +66,20 @@ class DataNode(DAGNode):
     def __init__(self, ld: Lambda) -> None:
         super().__init__()
         self.ld = ld
-        self.ready = ld.value != None
+        self.ready = False
         self.succ_control_nodes = []
         self.is_end_node = False
         self.pre_control_node = None
+        self.parent_node:"DataNode" = None
+        self.child_node:list["DataNode"] = []
         ld.setDataNode(self)
+
+    def set_parent_node(self, node:"DataNode"):
+        self.parent_node = node
+    def get_parent_node(self):
+        return self.parent_node
+    def registry_child_node(self, node:"DataNode"):
+        self.child_node.append(node)
 
     def set_pre_control_node(self, control_node: "ControlNode"):
         self.pre_control_node = control_node
@@ -82,7 +94,38 @@ class DataNode(DAGNode):
         return self.succ_control_nodes
 
     def set_value(self, value: Any):
-        self.ld.value = value
+        if isinstance(value, Lambda):
+            ld = value
+            if ld.canIter:
+                self.ld.value = ld.value
+                for v in ld.value:
+                    v:Lambda
+                    v.getDataNode().set_parent_node(self)
+                    self.registry_child_node(v.getDataNode())
+            else:
+                self.ld.value = ld
+                self.registry_child_node(ld.getDataNode())
+                ld.getDataNode().set_parent_node(self)
+        else:
+            self.ld.value = value
+        
+    def try_parent_ready(self):
+        if self.parent_node == None:
+            return
+        if not self.is_ready():
+            return
+        if self.parent_node.is_ready():
+            self.parent_node.set_ready()
+    def is_ready(self):
+        if self.ready:
+            return True
+        for child_node in self.child_node:
+            if not child_node.is_ready():
+                return False
+        if self.ld.value == None:
+            return False
+        return True
+    def set_ready(self):
         self.ready = True
     
     def describe(self) -> str:
@@ -145,7 +188,7 @@ class DAG:
                 if node.done:
                     continue
                 if isinstance(node, DataNode):
-                    if node.ready:
+                    if node.is_ready():
                         task.append(node)
                 if isinstance(node, ControlNode):
                     if node.get_pre_data_nodes() == []:
@@ -155,26 +198,16 @@ class DAG:
                 node = task.pop(0)
                 node.done = True
                 if isinstance(node, DataNode):
-                    if not isinstance(node.ld.value, Lambda):
-                        for control_node in node.get_succ_control_nodes():
-                            control_node: ControlNode
-                            print(f"{control_node.describe()} appargs {node.ld.value}")
-                            if control_node.appargs(node.ld):
-                                task.append(control_node)
-                    else:
-                        innerValue:Lambda = node.ld.value
-                        task.append(node)
-                        if innerValue.canIter:
-                            for inner_value in innerValue.value:
-                                inner_value: Lambda
-                                self.add_node(inner_value.getDataNode())
-                        else:
-                            self.add_node(innerValue.getDataNode())
-                        # pass
+                    for control_node in node.get_succ_control_nodes():
+                        control_node: ControlNode
+                        print(f"{control_node.describe()} appargs {node.ld.value}")
+                        if control_node.appargs(node.ld):
+                            task.append(control_node)
                 elif isinstance(node, ControlNode):
                     r_node: DataNode = node.calculate()
                     print(f"{node.describe()} calculate {r_node.describe()}")
-                    task.append(r_node)
+                    if r_node.is_ready():
+                        task.append(r_node)
         result = None
         for node in self.nodes:
             if isinstance(node, DataNode) and node.is_end_node:

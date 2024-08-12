@@ -12,7 +12,7 @@ setup(
         'pydantic==1.10.8',
         'python-dotenv==1.0.1',
         "oss2==2.18.4",
-        "redis==3.5.3",
+        "redis==5.0.8",
     ],
     packages=find_packages(),
     python_requires='>=3.6',

@@ -111,7 +111,6 @@ class Lambda:
             results = Lambda([])
             for value in values:
                 results.value.append(value)
-            results.canIter = True
             results = generate_subgraph(fn, [results])
             return results
         return generate_subgraph(join_helper, [self,fn])
