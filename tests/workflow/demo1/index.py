@@ -5,7 +5,7 @@ from faasit_runtime.operators import forkjoin
 import re
 
 @function
-async def count(frt: FaasitRuntime):
+def count(frt: FaasitRuntime):
     _in = frt.input()
     words = _in["words"]
     
@@ -20,7 +20,7 @@ async def count(frt: FaasitRuntime):
     })
 
 @function
-async def sort(frt: FaasitRuntime):
+def sort(frt: FaasitRuntime):
     _in = frt.input()
     counterArray = _in["counter"]
 
@@ -38,7 +38,7 @@ async def sort(frt: FaasitRuntime):
     })
 
 @function
-async def split(frt: FaasitRuntime):
+def split(frt: FaasitRuntime):
     _in = frt.input()
     text: str = _in["text"]
 
@@ -62,17 +62,17 @@ def wordcount(wf:Workflow):
     batchSize = _in.get('batchSize',10)
     
     # words = (await frt.call('split', {'text': text}))['words']
-    words = wf.call('split', {'text': text})['words']
+    words: Lambda = wf.call('split', {'text': text})['words']
 
-    async def work(words):
-        result = await wf.exec('count', {'words': words})
+
+    def work(words):
+        result = wf.call('count', {'words': words})
         return result['counter']
-    async def join(counter):
-        result = await wf.exec('sort', {'counter': counter})
+    def join(counter):
+        result = wf.call('sort', {'counter': counter})
         return result['counter']
     
-    
-    result = wf.func(forkjoin, input=words, work=work, join=join, worker_size=batchSize, joiner_size=2)
+    result = words.fork(3).map(work).join(join)
 
     return result
 

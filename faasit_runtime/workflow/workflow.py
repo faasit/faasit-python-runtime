@@ -4,8 +4,7 @@ from faasit_runtime.workflow.dag import DAG, ControlNode,DataNode
 from faasit_runtime.workflow.ld import Lambda
 
 from faasit_runtime.workflow.route import Route,RouteRunner
-
-import asyncio
+from ..api import invoke
 import inspect
 class WorkflowInput:
     def __init__(self,workflow:"Workflow") -> None:
@@ -28,27 +27,15 @@ class Workflow:
     def __init__(self,route:Route = None) -> None:
         self.route = route
         self.params:Dict[str,Lambda] = {}
-        self.dag = DAG()
+        self.dag = DAG(self)
         pass
 
 
     def invokeHelper(self,fn_name):
-        runner = RouteRunner(self.route)
-        container_conf = get_function_container_config()
-        match container_conf['provider']:
-            case 'local-once':
-                handler = runner.route(fn_name)
-                def local_once_invoke(event:Dict):
-                    nonlocal runner
-                    if inspect.iscoroutinefunction(handler):
-                        return asyncio.run(handler(event,runner))
-                    else:
-                        return handler(event,runner)
-
-                return local_once_invoke
-            case _:
-                raise ValueError(f"provider {container_conf['provider']} not supported")
-    
+        def invoke_fn(event:Dict):
+            nonlocal fn_name
+            return invoke(self.route, fn_name, event)
+        return invoke_fn
     @staticmethod
     def funcHelper(fn):
         def functionCall(data:dict):
@@ -62,10 +49,7 @@ class Workflow:
                 data.pop(i)
             for key in data:
                 kwargs[key] = data[key]
-            if inspect.iscoroutinefunction(fn):
-                return asyncio.run(fn(*args,**kwargs))
-            else:
-                return fn(*args,**kwargs)
+            return fn(*args,**kwargs)
         return functionCall
 
     def getEvent(self) -> WorkflowInput:
@@ -85,10 +69,14 @@ class Workflow:
         r = Lambda()
         result_node = DataNode(r)
         fn_ctl_node.set_data_node(result_node)
+        result_node.set_pre_control_node(fn_ctl_node)
         self.dag.add_node(result_node)
         return r
 
     def call(self, fn_name:str, fn_params:Dict[str,Lambda]) -> Lambda:
+        """
+        for the remote code support
+        """
         invoke_fn = self.invokeHelper(fn_name)
         fn_ctl_node = ControlNode(invoke_fn)
         self.dag.add_node(fn_ctl_node)
@@ -99,6 +87,9 @@ class Workflow:
         return r
 
     def func(self,fn,*args,**kwargs) -> Lambda:
+        """
+        for the local code support
+        """
         fn_ctl_node = ControlNode(Workflow.funcHelper(fn))
         self.dag.add_node(fn_ctl_node)
         for index,ld in enumerate(args):
@@ -108,20 +99,6 @@ class Workflow:
 
         r = self.build_function_return_dag(fn_ctl_node)
         return r
-    
-    async def exec(self,fn_name:str, event):
-        runner = RouteRunner(self.route)
-        container_conf = get_function_container_config()
-        match container_conf['provider']:
-            case 'local-once':
-                handler = runner.route(fn_name)
-                if inspect.iscoroutinefunction(handler):
-                    return await handler(event)
-                else:
-                    return handler(event)
-            case _:
-                raise ValueError(f"provider {container_conf['provider']} not supported")
-    
     
     
     def execute(self,event:dict):
@@ -141,6 +118,7 @@ class Workflow:
             end_node = DataNode(ld)
         else:
             end_node = ld.getDataNode()
+        self.dag.add_node(end_node)
         end_node.is_end_node = True
     
     def __str__(self) -> str:

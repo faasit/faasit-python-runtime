@@ -1,17 +1,22 @@
-from typing import Any, List, Callable
+from typing import Any, List, Callable, TYPE_CHECKING
 from .ld import Lambda
+if TYPE_CHECKING:
+    from .workflow import Workflow
 
 class DAGNode:
     def __init__(self) -> None:
+        self.done = False
         pass
 
 
 class ControlNode(DAGNode):
     def __init__(self, fn) -> None:
+        super().__init__()
         self.fn = fn
         self.pre_data_nodes = []
         self.ld_to_key: dict[Lambda, str] = {}
         self.datas = {}
+        self.data_node = None
 
     def add_pre_data_node(self, data_node: DAGNode):
         self.pre_data_nodes.append(data_node)
@@ -41,6 +46,13 @@ class ControlNode(DAGNode):
         res = self.fn(self.datas)
         self.data_node.set_value(res)
         return self.get_data_node()
+    
+    def describe(self) -> str:
+        res = f"fn ("
+        for key,value in self.ld_to_key.items():
+            res += f"{value},"
+        res = res[:-1] + ")"
+        return res
 
     def __str__(self) -> str:
         res = f"(ControlNode {super().__str__()}) {self.fn.__name__}"
@@ -49,6 +61,7 @@ class ControlNode(DAGNode):
 
 class DataNode(DAGNode):
     def __init__(self, ld: Lambda) -> None:
+        super().__init__()
         self.ld = ld
         self.ready = ld.value != None
         self.succ_control_nodes = []
@@ -71,6 +84,10 @@ class DataNode(DAGNode):
     def set_value(self, value: Any):
         self.ld.value = value
         self.ready = True
+    
+    def describe(self) -> str:
+        res = f"Lambda value is: {self.ld}"
+        return res
 
     def __str__(self) -> str:
         res = f"[DataNode {super()}] {self.ld}"
@@ -78,16 +95,26 @@ class DataNode(DAGNode):
 
 
 class DAG:
-    def __init__(self) -> None:
+    def __init__(self, workflow:"Workflow") -> None:
         self.nodes: List[DAGNode] = []
+        self.workflow_ = workflow
 
     def add_node(self, node: DAGNode):
+        """
+        recursive add node
+        if node is already in nodes, return
+        we have considerd the subgraph case in this function
+        """
         if node in self.nodes or node == None:
             return
         self.nodes.append(node)
         if isinstance(node, DataNode):
             self.add_node(node.get_pre_control_node())
+            for control_node in node.get_succ_control_nodes():
+                control_node: ControlNode
+                self.add_node(control_node)
         elif isinstance(node, ControlNode):
+            self.add_node(node.get_data_node())
             for data_node in node.get_pre_data_nodes():
                 self.add_node(data_node)
             
@@ -106,26 +133,48 @@ class DAG:
                 res += f"  -> {str(data_node)}\n"
         return res
 
-    def run(self):
-        task = []
+    def hasDone(self) -> bool:
         for node in self.nodes:
-            if isinstance(node, DataNode):
-                if node.ready:
-                    task.append(node)
-            if isinstance(node, ControlNode):
-                if node.get_pre_data_nodes() == []:
-                    task.append(node)
+            if node.done == False:
+                return False
+        return True
+    def run(self):
+        while not self.hasDone():
+            task = []
+            for node in self.nodes:
+                if node.done:
+                    continue
+                if isinstance(node, DataNode):
+                    if node.ready:
+                        task.append(node)
+                if isinstance(node, ControlNode):
+                    if node.get_pre_data_nodes() == []:
+                        task.append(node)
 
-        while len(task) != 0:
-            node = task.pop(0)
-            if isinstance(node, DataNode):
-                for control_node in node.get_succ_control_nodes():
-                    control_node: ControlNode
-                    if control_node.appargs(node.ld):
-                        task.append(control_node)
-            if isinstance(node, ControlNode):
-                r_node: DataNode = node.calculate()
-                task.append(r_node)
+            while len(task) != 0:
+                node = task.pop(0)
+                node.done = True
+                if isinstance(node, DataNode):
+                    if not isinstance(node.ld.value, Lambda):
+                        for control_node in node.get_succ_control_nodes():
+                            control_node: ControlNode
+                            print(f"{control_node.describe()} appargs {node.ld.value}")
+                            if control_node.appargs(node.ld):
+                                task.append(control_node)
+                    else:
+                        innerValue:Lambda = node.ld.value
+                        task.append(node)
+                        if innerValue.canIter:
+                            for inner_value in innerValue.value:
+                                inner_value: Lambda
+                                self.add_node(inner_value.getDataNode())
+                        else:
+                            self.add_node(innerValue.getDataNode())
+                        # pass
+                elif isinstance(node, ControlNode):
+                    r_node: DataNode = node.calculate()
+                    print(f"{node.describe()} calculate {r_node.describe()}")
+                    task.append(r_node)
         result = None
         for node in self.nodes:
             if isinstance(node, DataNode) and node.is_end_node:

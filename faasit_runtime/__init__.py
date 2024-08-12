@@ -42,13 +42,6 @@ def transformfunction(fn: type_Function) -> type_Function:
         case 'aws':
             frt = FaasitRuntime(containerConf)
         case 'local-once':
-            async def localonce_async_function(event, 
-                               workflow_runner = None,
-                               metadata: FaasitRuntimeMetadata = None
-                               ):
-                frt = LocalOnceRuntime(event, workflow_runner, metadata)
-                result = await fn(frt)
-                return result
             def localonce_function(event, 
                                workflow_runner = None,
                                metadata: FaasitRuntimeMetadata = None
@@ -56,10 +49,7 @@ def transformfunction(fn: type_Function) -> type_Function:
                 frt = LocalOnceRuntime(event, workflow_runner, metadata)
                 result = fn(frt)
                 return result
-            if inspect.iscoroutinefunction(fn):
-                return localonce_async_function
-            else:
-                return localonce_function
+            return localonce_function
         case _:
             raise ValueError(f"Invalid provider {containerConf['provider']}")
 
@@ -81,9 +71,10 @@ def function(*args, **kwargs):
         routeBuilder.func(fn.__name__).set_handler(new_func)
         return new_func
 
-    
+wf: Workflow = None
 def workflow(fn) -> Workflow:
     route = routeBuilder.build()
+    global wf
     wf = Workflow(route)
     r  = fn(wf)
     wf.end_with(r)
