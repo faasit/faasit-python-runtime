@@ -98,6 +98,7 @@ class DataNode(DAGNode):
             ld = value
             if ld.canIter:
                 self.ld.value = ld.value
+                self.ld.canIter = True
                 for v in ld.value:
                     v:Lambda
                     v.getDataNode().set_parent_node(self)
@@ -115,6 +116,7 @@ class DataNode(DAGNode):
         if not self.is_ready():
             return
         if self.parent_node.is_ready():
+            self.parent_node.apply()
             self.parent_node.set_ready()
     def is_ready(self):
         if self.ready:
@@ -127,6 +129,12 @@ class DataNode(DAGNode):
         return True
     def set_ready(self):
         self.ready = True
+    def apply(self):
+        if self.ld.canIter:
+            for i in range(len(self.ld.value)):
+                self.ld.value[i] = self.ld.value[i].value
+        else:
+            self.ld.value = self.ld.value.value
     
     def describe(self) -> str:
         res = f"Lambda value is: {self.ld}"

@@ -91,7 +91,8 @@ class Lambda:
         def map_helper(fn, values):
             results = Lambda([])
             for element in values:
-                result = generate_subgraph(fn, [element])
+                # result = generate_subgraph(fn, [element])
+                result = fn(element)
                 # generate_subgraph(list.append, [results,result])
                 results.value.append(result)
             results.canIter = True
@@ -110,8 +111,10 @@ class Lambda:
         def join_helper(values, fn):
             results = Lambda([])
             for value in values:
-                results.value.append(value)
-            results = generate_subgraph(fn, [results])
+                for v in value:
+                    results.value.append(v)
+            results.canIter = True
+            results = fn(results)
             return results
         return generate_subgraph(join_helper, [self,fn])
     
