@@ -14,7 +14,7 @@ from faasit_runtime.utils import (
     get_function_container_config,
     callback,
 )
-from faasit_runtime.workflow import Workflow,Route,RouteBuilder
+from faasit_runtime.workflow import Workflow,Route,RouteBuilder,RouteRunner
 from typing import Callable, Set, Any
 import asyncio
 import inspect
@@ -72,9 +72,10 @@ def function(*args, **kwargs):
         return new_func
 
 wf: Workflow = None
+route: Route = None
 def workflow(fn) -> Workflow:
+    global wf, route
     route = routeBuilder.build()
-    global wf
     wf = Workflow(route)
     r  = fn(wf)
     wf.end_with(r)
@@ -99,7 +100,8 @@ def create_handler(fn_or_workflow : type_Function | Workflow):
                 return handler
             case 'local-once':
                 def handler(event: dict):
-                    
+                    frt = LocalOnceRuntime(event, RouteRunner(route), createFaasitRuntimeMetadata(container_conf['funcName']))
+                    workflow.setRuntime(frt)
                     result = workflow.execute(event)
                     return result
                 return handler

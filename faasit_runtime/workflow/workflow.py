@@ -2,6 +2,7 @@ from typing import Callable,Dict,TYPE_CHECKING
 from faasit_runtime.utils import get_function_container_config
 from faasit_runtime.workflow.dag import DAG, ControlNode,DataNode
 from faasit_runtime.workflow.ld import Lambda
+from ..runtime import FaasitRuntime
 
 from faasit_runtime.workflow.route import Route,RouteRunner
 from ..api import invoke
@@ -28,12 +29,19 @@ class Workflow:
         self.route = route
         self.params:Dict[str,Lambda] = {}
         self.dag = DAG(self)
+        self.frt: FaasitRuntime = None
         pass
+
+    def setRuntime(self, frt: FaasitRuntime):
+        self.frt = frt
+    def getRuntime(self):
+        return self.frt
 
 
     def invokeHelper(self,fn_name):
         def invoke_fn(event:Dict):
-            nonlocal fn_name
+            nonlocal self,fn_name
+            return self.frt.call(fn_name, event)
             return invoke(self.route, fn_name, event)
         return invoke_fn
     @staticmethod

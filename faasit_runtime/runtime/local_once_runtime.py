@@ -35,7 +35,7 @@ class LocalOnceRuntime(FaasitRuntime):
     def output(self, _out):
         return _out
 
-    async def call(self, fnName:str, fnParams: InputType) -> CallResult:
+    def call(self, fnName:str, fnParams: InputType) -> CallResult:
         fnParams: CallParams = CallParams(
             input=fnParams
         )
@@ -51,11 +51,11 @@ class LocalOnceRuntime(FaasitRuntime):
 
         handler = self._workflow_runner.route(fnName)
 
-        result = await handler(event, self._workflow_runner, metadata)
+        result = handler(event, self._workflow_runner, metadata)
 
         from faasit_runtime.durable import DurableWaitingResult
         if isinstance(result, DurableWaitingResult):
-            result = await result.waitResult()
+            result = result.waitResult()
 
         return result
 
