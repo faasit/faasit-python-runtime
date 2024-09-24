@@ -162,3 +162,5 @@ __pycache__
 *.egg-info
 .local
 local_storage
+tmp
+python
