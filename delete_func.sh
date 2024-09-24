@@ -1,0 +1,1 @@
+aliyun fc-open DELETE /2021-04-06/services/faasit/functions/hello --header "Content-Type=application/json;" --body "{}"
