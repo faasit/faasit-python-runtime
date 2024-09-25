@@ -30,9 +30,9 @@ def transformfunction(fn: type_Function) -> type_Function:
                 return await fn(frt)
             return local_function
         case 'aliyun':
-            async def aliyun_function(arg0, arg1):
+            def aliyun_function(arg0, arg1):
                 frt = AliyunRuntime(arg0, arg1)
-                return await fn(frt)
+                return fn(frt)
             return aliyun_function
         case 'knative':
             async def kn_function(event) -> FaasitResult:
@@ -71,10 +71,7 @@ def function(*args, **kwargs):
         routeBuilder.func(fn.__name__).set_handler(new_func)
         return new_func
 
-wf: Workflow = None
-route: Route = None
 def workflow(fn) -> Workflow:
-    global wf, route
     route = routeBuilder.build()
     wf = Workflow(route)
     r  = fn(wf)
@@ -92,15 +89,20 @@ def create_handler(fn_or_workflow : type_Function | Workflow):
                     # metadata = createFaasitRuntimeMetadata(container_conf['funcName']) if metadata == None else metadata
                     # return await runner.run(event, metadata)
                 return handler
-            case 'aliyun'| 'aws'| 'knative':
-                async def handler(event:dict):
-                    ...
-                    # nonlocal runner
-                    # return await runner.run(event)
+            case 'aliyun':
+                def handler(args0, args1):
+                    if container_conf['funcName'] == '__executor':
+                        frt = AliyunRuntime(args0, args1)
+                        workflow.setRuntime(frt)
+                        return workflow.execute(frt.input())
+                    else:
+                        fn = RouteRunner(workflow.route).route(container_conf['funcName'])
+                        result = fn(args0,args1)
+                        return result
                 return handler
             case 'local-once':
                 def handler(event: dict):
-                    frt = LocalOnceRuntime(event, RouteRunner(route), createFaasitRuntimeMetadata(container_conf['funcName']))
+                    frt = LocalOnceRuntime(event, RouteRunner(workflow.route), createFaasitRuntimeMetadata(container_conf['funcName']))
                     workflow.setRuntime(frt)
                     result = workflow.execute(event)
                     return result

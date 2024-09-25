@@ -6,7 +6,7 @@ from ..runtime import FaasitRuntime
 
 from faasit_runtime.workflow.route import Route,RouteRunner
 from ..api import invoke
-import inspect
+
 class WorkflowInput:
     def __init__(self,workflow:"Workflow") -> None:
         self.workflow = workflow
@@ -42,7 +42,6 @@ class Workflow:
         def invoke_fn(event:Dict):
             nonlocal self,fn_name
             return self.frt.call(fn_name, event)
-            return invoke(self.route, fn_name, event)
         return invoke_fn
     @staticmethod
     def funcHelper(fn):
@@ -92,7 +91,7 @@ class Workflow:
             self.build_function_param_dag(fn_ctl_node,key,ld)
 
         r = self.build_function_return_dag(fn_ctl_node)
-        return r
+        return self.catch(r)
 
     def func(self,fn,*args,**kwargs) -> Lambda:
         """
@@ -106,8 +105,13 @@ class Workflow:
             self.build_function_param_dag(fn_ctl_node,key,ld)
 
         r = self.build_function_return_dag(fn_ctl_node)
-        return r
+        return self.catch(r)
     
+    def catch(self, ld: Lambda) -> Lambda:
+        """
+        for the Lambda use map(etc) workflow support
+        """
+        return ld.becatch(self)
     
     def execute(self,event:dict):
         for key, ld in self.params.items():

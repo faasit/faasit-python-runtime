@@ -6,6 +6,7 @@ if TYPE_CHECKING:
 class DAGNode:
     def __init__(self) -> None:
         self.done = False
+        self.belong_dag:"DAG" = None
         pass
 
 
@@ -158,6 +159,7 @@ class DAG:
         """
         if node in self.nodes or node == None:
             return
+        node.belong_dag = self
         self.nodes.append(node)
         if isinstance(node, DataNode):
             self.add_node(node.get_pre_control_node())
