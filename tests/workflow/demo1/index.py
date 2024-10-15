@@ -3,9 +3,11 @@ from faasit_runtime.runtime import FaasitRuntime
 from faasit_runtime.workflow import Lambda,Workflow
 from faasit_runtime.operators import forkjoin
 import re
+import time
 
 @function
 def count(frt: FaasitRuntime):
+    time.sleep(1)
     _in = frt.input()
     words = _in["words"]
     
@@ -21,6 +23,7 @@ def count(frt: FaasitRuntime):
 
 @function
 def sort(frt: FaasitRuntime):
+    time.sleep(1)
     _in = frt.input()
     counterArray = _in["counter"]
 
@@ -39,6 +42,7 @@ def sort(frt: FaasitRuntime):
 
 @function
 def split(frt: FaasitRuntime):
+    time.sleep(1)
     _in = frt.input()
     text: str = _in["text"]
 
@@ -67,6 +71,9 @@ def wordcount(wf:Workflow):
 
     def work(words):
         result = wf.call('count', {'words': words})
+        def work2():
+            def work3():
+                
         return result['counter']
     def join(counter):
         result = wf.call('sort', {'counter': counter})

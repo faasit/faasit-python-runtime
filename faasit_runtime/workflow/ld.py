@@ -37,23 +37,23 @@ class Lambda:
                 return attr
         return generate_subgraph(method_fn, [self,method_name])
 
-    def _generate_dag(self, fn, list_lambda: list["Lambda"]) -> "Lambda":
-        ControlNode:"ControlNode" = import_module('faasit_runtime.workflow.dag').ControlNode
-        DataNode:"DataNode" = import_module('faasit_runtime.workflow.dag').DataNode
-        Workflow:"Workflow" = import_module('faasit_runtime.workflow.workflow').Workflow
-        invoke_fn = Workflow.funcHelper(fn)
-        fn_ctl_node = ControlNode(invoke_fn)
-        for index,ld in enumerate(list_lambda):
-            param_node = DataNode(ld) if ld.getDataNode() == None else ld.getDataNode()
-            param_node.add_succ_control_node(fn_ctl_node)
-            fn_ctl_node.add_pre_data_node(param_node)
-            fn_ctl_node.defParams(ld,index)
+    # def _generate_dag(self, fn, list_lambda: list["Lambda"]) -> "Lambda":
+    #     ControlNode:"ControlNode" = import_module('faasit_runtime.workflow.dag').ControlNode
+    #     DataNode:"DataNode" = import_module('faasit_runtime.workflow.dag').DataNode
+    #     Workflow:"Workflow" = import_module('faasit_runtime.workflow.workflow').Workflow
+    #     invoke_fn = Workflow.funcHelper(fn)
+    #     fn_ctl_node = ControlNode(invoke_fn)
+    #     for index,ld in enumerate(list_lambda):
+    #         param_node = DataNode(ld) if ld.getDataNode() == None else ld.getDataNode()
+    #         param_node.add_succ_control_node(fn_ctl_node)
+    #         fn_ctl_node.add_pre_data_node(param_node)
+    #         fn_ctl_node.defParams(ld,index)
 
-        r = Lambda()
-        result_node = DataNode(r)
-        fn_ctl_node.set_data_node(result_node)
-        result_node.set_pre_control_node(fn_ctl_node)
-        return r
+    #     r = Lambda()
+    #     result_node = DataNode(r)
+    #     fn_ctl_node.set_data_node(result_node)
+    #     result_node.set_pre_control_node(fn_ctl_node)
+    #     return r
 
     def checkWorkflow(fn):
         def wrapper(self, *args, **kwargs):
@@ -91,7 +91,7 @@ class Lambda:
         def map_helper(fn, values):
             results = Lambda([])
             for element in values:
-                # result = generate_subgraph(fn, [element])
+                # result = generate_subgraph(self.workflow_, fn, [element])
                 result = fn(element)
                 # generate_subgraph(list.append, [results,result])
                 results.value.append(result)

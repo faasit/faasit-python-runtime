@@ -17,7 +17,6 @@ from faasit_runtime.utils import (
 from faasit_runtime.workflow import Workflow,Route,RouteBuilder,RouteRunner
 from typing import Callable, Set, Any
 import asyncio
-import inspect
 
 type_Function = Callable[[Any], FaasitResult]
 
@@ -102,7 +101,7 @@ def create_handler(fn_or_workflow : type_Function | Workflow):
                 return handler
             case 'local-once':
                 def handler(event: dict):
-                    frt = LocalOnceRuntime(event, RouteRunner(workflow.route), createFaasitRuntimeMetadata(container_conf['funcName']))
+                    frt = LocalOnceRuntime(event, RouteRunner(workflow.route), createFaasitRuntimeMetadata('workflow'))
                     workflow.setRuntime(frt)
                     result = workflow.execute(event)
                     return result

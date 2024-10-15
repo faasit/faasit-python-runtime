@@ -119,6 +119,7 @@ class DataNode(DAGNode):
         if self.parent_node.is_ready():
             self.parent_node.apply()
             self.parent_node.set_ready()
+            self.parent_node.try_parent_ready()
     def is_ready(self):
         if self.ready:
             return True
