@@ -24,9 +24,9 @@ def transformfunction(fn: type_Function) -> type_Function:
     containerConf = get_function_container_config()
     match containerConf['provider']:
         case 'local':
-            async def local_function(event,metadata:FaasitRuntimeMetadata = None) -> FaasitResult:
+            def local_function(event,metadata:FaasitRuntimeMetadata = None) -> FaasitResult:
                 frt = LocalRuntime(event,metadata)
-                return await fn(frt)
+                return fn(frt)
             return local_function
         case 'aliyun':
             def aliyun_function(arg0, arg1):
@@ -114,8 +114,8 @@ def create_handler(fn_or_workflow : type_Function | Workflow):
                     return asyncio.run(fn_or_workflow(event, *args))
                 return handler
             case _:
-                async def handler(event: dict, *args):
-                    return await fn_or_workflow(event, *args)
+                def handler(event: dict, *args):
+                    return fn_or_workflow(event, *args)
                 return handler
 
 __all__ = ["function","workflow","durable","create_handler"]
