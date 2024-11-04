@@ -1,3 +1,4 @@
+rm -rf tmp build dist
 pip install wheel
 python setup.py bdist_wheel
 mkdir -p tmp/python

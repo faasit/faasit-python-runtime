@@ -16,10 +16,10 @@ import oss2
 load_dotenv(find_dotenv(usecwd=True))
 def helper_invoke_aliyun_function(fnName: str, event: Any):
     config = open_api_models.Config(
-        access_key_id=os.environ['FAASIT_SECRET_ALIYUN_ACCESS_KEY_ID'],
-        access_key_secret=os.environ['FAASIT_SECRET_ALIYUN_ACCESS_KEY_SECRET']
+        access_key_id=os.environ['ALIBABA_CLOUD_ACCESS_KEY_ID'],
+        access_key_secret=os.environ['ALIBABA_CLOUD_ACCESS_KEY_SECRET']
     )
-    config.endpoint = f"{os.environ['FAASIT_SECRET_ALIYUN_ACCOUNT_ID']}.{os.environ['FAASIT_SECRET_ALIYUN_REGION']}.fc.aliyuncs.com"
+    config.endpoint = f"{os.environ['ALIBABA_CLOUD_PRODUCT_CODE']}.{os.environ['ALIBABA_CLOUD_REGION']}.fc.aliyuncs.com"
     
     client = FC_Open20210406Client(config)
     invoke_func_req = fc__open20210406_models.InvokeFunctionRequest(
@@ -36,6 +36,8 @@ class AliyunRuntime(FaasitRuntime):
         self._storage = self.AliyunStorage()
 
     def input(self):
+        self.event = self.event.decode('utf-8')
+        self.event = self.event.replace("'", '"')
         return json.loads(self.event)
 
     def output(self, data):
@@ -43,7 +45,11 @@ class AliyunRuntime(FaasitRuntime):
 
     def call(self, fn_name:str, event: Any):
         result = helper_invoke_aliyun_function(fn_name, event)
-        result = str(result.body)
+        result = result.to_map()
+        result = result['body']
+        print(result)
+        result = result.decode('utf-8')
+        result = result.replace("'", '"')
         return json.loads(result)
 
     async def tell(self):
