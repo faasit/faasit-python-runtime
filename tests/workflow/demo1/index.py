@@ -71,9 +71,6 @@ def wordcount(wf:Workflow):
 
     def work(words):
         result = wf.call('count', {'words': words})
-        def work2():
-            def work3():
-                
         return result['counter']
     def join(counter):
         result = wf.call('sort', {'counter': counter})

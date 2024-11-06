@@ -45,6 +45,12 @@ class ControlNode(DAGNode):
 
     def calculate(self):
         res = self.fn(self.datas)
+        from collections.abc import Generator
+        if isinstance(res, Generator):
+            try:
+                next(res)
+            except StopIteration as e:
+                res = e.value
         self.data_node.set_value(res)
         self.data_node.try_parent_ready()
         if self.data_node.is_ready():
@@ -55,7 +61,7 @@ class ControlNode(DAGNode):
         res = f"fn ("
         for key,value in self.ld_to_key.items():
             res += f"{value},"
-        res = res[:-1] + ")"
+        res = res + ")"
         return res
 
     def __str__(self) -> str:
@@ -101,7 +107,9 @@ class DataNode(DAGNode):
                 self.ld.value = ld.value
                 self.ld.canIter = True
                 for v in ld.value:
-                    v:Lambda
+                    if not isinstance(v,Lambda):
+                        v = Lambda(v)
+                        DataNode(v)
                     v.getDataNode().set_parent_node(self)
                     self.registry_child_node(v.getDataNode())
             else:
@@ -171,7 +179,9 @@ class DAG:
             self.add_node(node.get_data_node())
             for data_node in node.get_pre_data_nodes():
                 self.add_node(data_node)
-            
+
+    def get_nodes(self):
+        return self.nodes
 
     def __str__(self):
         res = ""

@@ -1,6 +1,6 @@
 import os
 import time
-from faasit_runtime.runtime.faasit_runtime import (
+from .faasit_runtime import (
     FaasitRuntime,
     CallParams,
     StorageMethods,
@@ -9,7 +9,7 @@ from faasit_runtime.runtime.faasit_runtime import (
     InputType,
     FaasitRuntimeMetadata,
 )
-from faasit_runtime.workflow import RouteRunner
+from ..workflow import RouteRunner
 from typing import Any, List
 import asyncio
 
@@ -53,27 +53,28 @@ class LocalOnceRuntime(FaasitRuntime):
 
         result = handler(event, self._workflow_runner, metadata)
 
-        from faasit_runtime.durable import DurableWaitingResult
+        from ..durable import DurableWaitingResult
         if isinstance(result, DurableWaitingResult):
             result = result.waitResult()
+            next(result)
 
         return result
 
-    async def tell(self, fnName:str, fnParams: dict) -> Any:
+    def tell(self, fnName:str, fnParams: dict) -> Any:
         fnParams:TellParams = TellParams(**fnParams)
         event = fnParams.input
         if self._workflow_runner == None:
             raise Exception("workflow is not defined")
-        metadata:FaasitRuntimeMetadata = self.helperCollectMetadata("tell", fnName, fnParams)
+        metadata: FaasitRuntimeMetadata = self.helperCollectMetadata("tell", fnName, fnParams)
         # print(f"[Debug] {metadata.dict()}")
         callerName = self._metadata.funcName
 
         print(f"[function tell] {callerName} -> {fnName}")
         print(f"[tell params] {event}")
-        async def task():
+        def task():
             handler = self._workflow_runner.route(fnName)
             nonlocal metadata
-            await handler(event, self._workflow_runner, metadata)
+            return handler(event, self._workflow_runner, metadata)
             # from faasit_runtime.durable import DurableWaitingResult
             # if isinstance(result, DurableWaitingResult):
             #     result = await result.waitResult()
@@ -88,8 +89,7 @@ class LocalOnceRuntime(FaasitRuntime):
             #     callbackMetadata = self.helperCollectMetadata("tell", callerName, callbackParams)
             #     result = await handler(result, self._workflow_runner, callbackMetadata)
             # return result
-        subtask = asyncio.create_task(task())
-        return subtask
+        return task
         # return task
     
     @property

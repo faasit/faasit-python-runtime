@@ -3,12 +3,9 @@ from .durable import durable
 from faasit_runtime.runtime import (
     FaasitRuntime, 
     FaasitResult,
-    AliyunRuntime,
-    LocalOnceRuntime,
-    LocalRuntime,
-    KnativeRuntime,
     createFaasitRuntimeMetadata,
-    FaasitRuntimeMetadata
+    FaasitRuntimeMetadata,
+    load_runtime
 )
 from faasit_runtime.utils import (
     get_function_container_config,
@@ -25,18 +22,21 @@ def transformfunction(fn: type_Function) -> type_Function:
     match containerConf['provider']:
         case 'local':
             def local_function(event,metadata:FaasitRuntimeMetadata = None) -> FaasitResult:
+                LocalRuntime = load_runtime('local')
                 frt = LocalRuntime(event,metadata)
                 return fn(frt)
             return local_function
         case 'aliyun':
             def aliyun_function(arg0, arg1):
+                AliyunRuntime = load_runtime('aliyun')
                 frt = AliyunRuntime(arg0, arg1)
                 return fn(frt)
             return aliyun_function
         case 'knative':
-            async def kn_function(event) -> FaasitResult:
+            def kn_function(event) -> FaasitResult:
+                KnativeRuntime = load_runtime('knative')
                 frt = KnativeRuntime(event)
-                return await fn(frt)
+                return fn(frt)
             return kn_function
         case 'aws':
             frt = FaasitRuntime(containerConf)
@@ -45,6 +45,7 @@ def transformfunction(fn: type_Function) -> type_Function:
                                workflow_runner = None,
                                metadata: FaasitRuntimeMetadata = None
                                ):
+                LocalOnceRuntime = load_runtime('local-once')
                 frt = LocalOnceRuntime(event, workflow_runner, metadata)
                 result = fn(frt)
                 return result
@@ -91,6 +92,7 @@ def create_handler(fn_or_workflow : type_Function | Workflow):
             case 'aliyun':
                 def handler(args0, args1):
                     if container_conf['funcName'] == '__executor':
+                        AliyunRuntime = load_runtime('aliyun')
                         frt = AliyunRuntime(args0, args1)
                         workflow.setRuntime(frt)
                         return workflow.execute(frt.input())
@@ -101,6 +103,7 @@ def create_handler(fn_or_workflow : type_Function | Workflow):
                 return handler
             case 'local-once':
                 def handler(event: dict):
+                    LocalOnceRuntime = load_runtime('local-once')
                     frt = LocalOnceRuntime(event, RouteRunner(workflow.route), createFaasitRuntimeMetadata('workflow'))
                     workflow.setRuntime(frt)
                     result = workflow.execute(event)
