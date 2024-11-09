@@ -23,6 +23,9 @@ def load_runtime(provider) -> FaasitRuntime:
         case 'knative':
             from .kn_runtime import KnativeRuntime
             return KnativeRuntime
+        case 'pku':
+            from .pku_runtime import PKURuntime
+            return PKURuntime
         case _:
             raise ValueError(f"Invalid provider {provider}")
 

@@ -66,10 +66,10 @@ def createFaasitRuntimeMetadata(fnName:str) -> FaasitRuntimeMetadata:
     return FaasitRuntimeMetadata(funcName=fnName, stack=[])
 
 class StorageMethods(ABC):
-    def put(self, filename: str, data: bytes) -> None:
+    def put(self, filename: str, data: bytes, **opts) -> None:
         pass
 
-    def get(self, filename: str, timeout = -1) -> bytes:
+    def get(self, filename: str, **opts) -> bytes:
         pass
 
     def list(self) -> List:
