@@ -10,13 +10,13 @@ import logging
 import os
 import threading
 import time
-from serverless_utils import TransportMode, Address, LockPair
+from .serverless_utils import TransportMode, Address, LockPair
 from typing import Dict, List, Any, Callable, Tuple, Optional, Set
-from metadata import Metadata
-from engine import Engine
+from .metadata import Metadata
+from .engine import Engine
 from collections import namedtuple
-from deployment import DeploymentGenerator
-from redis_db import RedisProxy
+from .deployment import DeploymentGenerator
+from .redis_db import RedisProxy
 from kubernetes import client, config, utils
 
 class ControllerContext:
@@ -80,7 +80,7 @@ class ControllerContext:
         self.schedule: Dict[str, Address] = self.deploy.getIngress()
         self.params: Dict[str, Dict[str, Any]] = self.profile.get('default_params')
 
-        self.worker_yamls: Dict[str, str] = self.deploy.generate_kubernetes_yamls('/tmp/serverless/')
+        self.worker_yamls: Dict[str, str] = self.deploy.generate_kubernetes_yamls('.')
         
         self.redis_yaml: str = 'Redis/redis.yaml'
         self.redis_ip: str = "10.0.0.100"           # has to match redis_yaml
@@ -208,7 +208,7 @@ def do_eval() -> Tuple[float, List[float]]:
     return (overall_end - overall_begin, lats)
 
 
-if __name__ == "__main__":
+def main():
     ctx.resolve_args_and_setup()    
     
     w_over_all = 0
@@ -230,3 +230,6 @@ if __name__ == "__main__":
     logging.info(f"Overall latency (s): min={lats[0]}, avg={sum(lats) / len(lats)} "
         f"p50={lats[int(len(lats) * 0.5)]}, p90={lats[int(len(lats) * 0.9)]} "
         f"p99={lats[int(len(lats) * 0.99)]}, p999={lats[int(len(lats) * 0.999)]}, p100={lats[-1]}")
+
+if __name__ == "__main__":
+    main()

@@ -85,6 +85,7 @@ class FaasitRuntime(ABC):
     def __init__(self) -> None:
         super().__init__()
         self.event = None
+        self._storage = None
     def metadata(self) -> FaasitRuntimeMetadata:
         return self._metadata
     
@@ -110,7 +111,7 @@ class FaasitRuntime(ABC):
 
     @property
     def storage(self) -> StorageMethods:
-        pass
+        return self._storage
 
     async def waitResults(self, tasks: list[Awaitable[CallResult]]):
         results = []

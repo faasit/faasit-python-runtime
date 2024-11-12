@@ -11,6 +11,7 @@ def generate_subgraph(wf:"Workflow", fn, list_lambda: list["Lambda"]) -> "Lambda
 
 class Lambda:
     def __init__(self, value: Any | None = None) -> None:
+        self.name = None
         self.value = value
         self._dataNode: "DataNode" = None
         self.canIter = False

@@ -4,7 +4,7 @@ import time
 import logging
 import socket
 from typing import Dict, List, Any, Optional
-from cache_server import Reply
+from .cache_server import Reply
 
 
 def PostUntil200(url: str, data: Any, *, timeout: float = 10, post_ratio: float = 0.0) -> Any:

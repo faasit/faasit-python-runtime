@@ -8,16 +8,13 @@ from .faasit_runtime import (
 )
 from typing import Dict, Optional
 
-class PKURuntimeMetadata(FaasitRuntimeMetadata):
-    metadata: Metadata
     
 
 
 class PKURuntime(FaasitRuntime):
     def __init__(self, ft_metadata: FaasitRuntimeMetadata, metadata: Metadata):
-        self._metadata: PKURuntimeMetadata = PKURuntimeMetadata(ft_metadata, metadata)
         self._input = metadata.params
-        self._storage = self.PKUStorage(self._metadata)
+        self._storage = self.PKUStorage(metadata)
 
     def input(self):
         return self._input
@@ -51,16 +48,16 @@ class PKURuntime(FaasitRuntime):
             super().__init__()
             self._metadata = metadata
         def put(self, filename: str, data: bytes, **opts) -> None:
-            dest_states = opts.get('dest_states')
-            active_send = opts.get('active_send')
-            return self._metadata.output(dest_states, filename, data, active_send=active_send)
+            dest_stages = opts.get('dest_stages')
+            active_send = opts.get('active_send', False)
+            return self._metadata.output(dest_stages, filename, data, active_send=active_send)
 
         def get(self, filename: str, **opts) -> bytes:
-            src_state = opts.get('src_state')
+            src_stage = opts.get('src_stage')
             timeout = opts.get('timeout')
-            active_pull = opts.get('active_pull')
-            tcp_direct = opts.get('tcp_direct')
-            return self._metadata.get_object(src_state, filename, timeout=timeout, active_pull=active_pull, tcp_direct=tcp_direct)
+            active_pull = opts.get('active_pull', True)
+            tcp_direct = opts.get('tcp_direct', True)
+            return self._metadata.get_object(src_stage, filename, timeout=timeout, active_pull=active_pull, tcp_direct=tcp_direct)
 
         def get_assert_exist(self, filename: str, **opts):
             src_state = opts.get('src_state')

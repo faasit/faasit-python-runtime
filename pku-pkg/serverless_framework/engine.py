@@ -1,7 +1,7 @@
-from serverless_utils import TransportMode, Address, final_outputs_prefix
+from .serverless_utils import TransportMode, Address, final_outputs_prefix
 from typing import Callable, Dict, List, Any, Tuple
 from threading import Thread
-from metadata import Metadata
+from .metadata import Metadata
 import time
 import logging
 
@@ -44,9 +44,8 @@ class Engine:
         if len(self.exec_func) == 0:
             logging.error(f"Engine{self.name}: no stages to execute.")
             raise Exception("No stages to execute.")
-        
+        logging.info(self.exec_func)
         while len(success) < len(self.exec_func):
-            
             cur = time.time()
 
             for stage, metadata in executing.items():
@@ -132,6 +131,7 @@ class Engine:
             func()
 
         for t in self.timing_func:
+            logging.info(t)
             self.timer_task.append(Thread(target=executor, args=(t[0], t[1])))
 
         for t in self.timer_task:

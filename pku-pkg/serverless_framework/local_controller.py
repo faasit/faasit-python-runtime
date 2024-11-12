@@ -6,13 +6,13 @@ import logging
 import os
 import threading
 import time
-from serverless_utils import TransportMode, Address, LockPair
+from .serverless_utils import TransportMode, Address, LockPair
 from typing import Dict, List, Any, Callable, Tuple, Optional, Set
-from metadata import Metadata
-from engine import Engine
+from .metadata import Metadata
+from .engine import Engine
 from collections import namedtuple
-from deployment import DeploymentGenerator
-from redis_db import RedisProxy
+from .deployment import DeploymentGenerator
+from .redis_db import RedisProxy
 
 
 class ControllerContext:

@@ -11,8 +11,9 @@ class DAGNode:
 
 
 class ControlNode(DAGNode):
-    def __init__(self, fn) -> None:
+    def __init__(self, fn, name=None) -> None:
         super().__init__()
+        self.name = name
         self.fn = fn
         self.pre_data_nodes = []
         self.ld_to_key: dict[Lambda, str] = {}
@@ -195,6 +196,37 @@ class DAG:
                 res += str(node)
                 data_node: DataNode = node.get_data_node()
                 res += f"  -> {str(data_node)}\n"
+        return res
+    def validate(self) -> dict:
+        res = {}
+        for node in self.nodes:
+            if isinstance(node, DataNode):
+                if node.pre_control_node:
+                    pre_ctl_name = node.pre_control_node.name
+                    for ctl in node.succ_control_nodes:
+                        ctl: ControlNode
+                        suf_ctl_name = ctl.name
+                        if res.get(suf_ctl_name) == None:
+                            res[suf_ctl_name] = {}
+                        if res[suf_ctl_name].get('pre') == None:
+                            res[suf_ctl_name]['pre'] = []
+                        if res[suf_ctl_name].get('params') == None:
+                            res[suf_ctl_name]['params'] = {}
+                        res[suf_ctl_name]['pre'].append(pre_ctl_name)
+                        res[suf_ctl_name]['params'] = {ctl.ld_to_key[node.ld]: node.ld.value}
+                else:
+                    for ctl in node.succ_control_nodes:
+                        ctl: ControlNode
+                        suf_ctl_name = ctl.name
+                        if res.get(suf_ctl_name) == None:
+                            res[suf_ctl_name] = {}
+                        if res[suf_ctl_name].get('pre') == None:
+                            res[suf_ctl_name]['pre'] = []
+                        if res[suf_ctl_name].get('params') == None:
+                            res[suf_ctl_name]['params'] = {}
+                        res[suf_ctl_name]['params'] = {ctl.ld_to_key[node.ld]: node.ld.value}    
+            # if isinstance(node, ControlNode):
+            #     res[node] = node.get_pre_data_nodes() == []
         return res
 
     def hasDone(self) -> bool:

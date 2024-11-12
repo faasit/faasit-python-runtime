@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Set
 from collections import namedtuple
 from itertools import product
 import logging
-from serverless_utils import Address, DuplicatedPortChecker
+from .serverless_utils import Address, DuplicatedPortChecker
 import kubernetes as k8s
 
 PerformanceProfile = namedtuple('Profile', ['compute_time', 'input_time', 'output_time', 'minimum_vcpu'])
@@ -257,6 +257,7 @@ class DeploymentGenerator:
         return files
 
     def _replace_stage_varibles(self, lines: str, stage: str) -> str:
+        codeDir = self.profile['stage_profiles'][stage]['codeDir']
         return lines.replace('__app-name__', self.app_name)\
                     .replace('__stage-name__', stage)\
                     .replace('__node-name__', self.placement[stage])\
@@ -268,7 +269,9 @@ class DeploymentGenerator:
                     .replace('__worker-external-port__', str(self.profile['stage_profiles'][stage]['worker_external_port']))\
                     .replace('__cache-server-external-port__', str(self.profile['stage_profiles'][stage]['cache_server_external_port']))\
                     .replace('__parallelism__', str(self.profile['stage_profiles'][stage]['parallelism']))\
-                    .replace('__external-ip__', self.external_ip)
+                    .replace('__external-ip__', self.external_ip)\
+                    .replace('__host-path__', f'{os.getcwd()}/{codeDir}')\
+                    .replace('__cwd__', os.getcwd())
 
     def get_worker_commandlines(self) -> Dict[str, str]:
         # fetch from the profile yaml file

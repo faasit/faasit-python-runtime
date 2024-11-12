@@ -1,8 +1,8 @@
-from serverless_utils import TransportMode, Address, Result, final_outputs_prefix
+from .serverless_utils import TransportMode, Address, Result, final_outputs_prefix
 from typing import Dict, List, Any, Optional, Union, Set
-from sending import PostUntil200, tcp_cache_get
-from redis_db import RedisProxy
-from kv_cache import KVCache
+from .sending import PostUntil200, tcp_cache_get
+from .redis_db import RedisProxy
+from .kv_cache import KVCache
 import random
 import time
 import logging
@@ -96,7 +96,7 @@ class Metadata:
         assert(self.redis_proxy)
         if not self.retval:
             self.retval = self.redis_proxy.extract(self._result_redis_key())
-
+            logging.info(self.retval)
             if self.retval:
                 self.finish_time = time.time()
                 return True

@@ -16,18 +16,18 @@ import importlib.util
 import http.server
 from socketserver import ThreadingMixIn
 import pickle
-from metadata import Metadata
-from kv_cache import KVCache
-from redis_db import RedisProxy
+from .metadata import Metadata
+from .kv_cache import KVCache
+from .redis_db import RedisProxy
 import logging
 import traceback
 from typing import Callable, Optional, Dict, Any, Set
 from concurrent.futures import ThreadPoolExecutor
-from serverless_utils import Result
+from .serverless_utils import Result
 import argparse
 import logging
 import cProfile
-from cache_server import CacheServer
+from .cache_server import CacheServer
 from threading import Lock
 
 lambda_file = None
@@ -265,4 +265,4 @@ if __name__ == "__main__":
         if args.profiling:
             assert(profiler)
             profiler.disable()
-            profiler.dump_stats(f'/worker_{function_name}.prof')
+            profiler.dump_stats(f'./worker_{function_name}.prof')

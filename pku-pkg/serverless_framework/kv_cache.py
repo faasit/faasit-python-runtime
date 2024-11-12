@@ -2,7 +2,7 @@ import threading
 import logging
 from typing import Any, Optional, Dict
 import pickle
-from serverless_utils import ObjBytesPair
+from .serverless_utils import ObjBytesPair
 
 class KVCache:
     def __init__(self):
