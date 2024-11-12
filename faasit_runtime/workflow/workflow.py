@@ -25,11 +25,12 @@ class WorkflowInput:
             return ld
 
 class Workflow:
-    def __init__(self,route:Route = None) -> None:
+    def __init__(self,route:Route = None, name:str= None) -> None:
         self.route = route
         self.params:Dict[str,Lambda] = {}
         self.dag = DAG(self)
         self.frt: FaasitRuntime = None
+        self.name: str = name
         pass
 
     def setRuntime(self, frt: FaasitRuntime):
@@ -85,7 +86,7 @@ class Workflow:
         for the remote code support
         """
         invoke_fn = self.invokeHelper(fn_name)
-        fn_ctl_node = ControlNode(invoke_fn)
+        fn_ctl_node = ControlNode(invoke_fn, fn_name)
         self.dag.add_node(fn_ctl_node)
         for key, ld in fn_params.items():
             self.build_function_param_dag(fn_ctl_node,key,ld)
@@ -133,5 +134,7 @@ class Workflow:
         self.dag.add_node(end_node)
         end_node.is_end_node = True
     
+    def validate(self):
+        return self.dag.validate()
     def __str__(self) -> str:
         return str(self.dag)

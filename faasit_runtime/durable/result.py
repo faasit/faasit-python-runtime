@@ -1,8 +1,3 @@
-from faasit_runtime.durable.state import (
-    DurableFunctionState,
-    ScopedDurableStateClient
-)
-
 import asyncio
 
 class DurableWaitingResult:
