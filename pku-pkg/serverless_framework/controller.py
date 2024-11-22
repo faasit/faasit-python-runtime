@@ -82,7 +82,7 @@ class ControllerContext:
 
         self.worker_yamls: Dict[str, str] = self.deploy.generate_kubernetes_yamls('.')
         
-        self.redis_yaml: str = 'Redis/redis.yaml'
+        self.redis_yaml: str = os.path.join(os.path.dirname(__file__),'redis.yaml')
         self.redis_ip: str = "10.0.0.100"           # has to match redis_yaml
         self.redis_port: int = 6889                 # has to match redis_yaml
         self.redis_password: str = '293r9vfT7dfa&^' # has to match redis_yaml

@@ -143,28 +143,24 @@ def create_handler(fn_or_workflow : type_Function | Workflow):
                             res['default_params'][stage] = para_val
                             break
                     res['DAG'][stage] = pre
-                def invoke(profile_path:str,redis_folder:str):
+                def invoke(profile_path:str,redis_preload_folder:str=None):
                     import sys
                     import os
-                    # from serverless_framework import controller
-                    # python3 serverless-framework/controller.py --repeat $latency_repeat --launch tradition --transmode allTCP --ditto_placement 2> $output_dir/tradition_latency.txt
-                    redis_preload_folder = f'{redis_folder}/preload/mlpipe'
-                    os.system(f"python3 {os.getcwd()}/serverless-framework/controller.py --repeat 5 --launch tradition --transmode allTCP --profile {profile_path} --redis_preload_folder {redis_preload_folder}")
-                    # sys.path.append(f'{os.getcwd()}/serverless-framework')                 
-                    # sys.argv = ['serverless_framework/controller.py',
-                    #             '--repeat',
-                    #             '5',
-                    #             '--launch',
-                    #             'tradition',
-                    #             '--transmode',
-                    #             'allTCP',
-                    #             '--profile',
-                    #             profile_path,
-                    #             '--redis_preload_folder',
-                    #             redis_preload_folder,
-                                
-                    #             ]
-                    # controller.main()
+                    from serverless_framework import controller
+                    sys.argv = ['serverless_framework/controller.py',
+                                '--repeat',
+                                '2',
+                                '--launch',
+                                'tradition',
+                                '--transmode',
+                                'allTCP',
+                                '--profile',
+                                profile_path,
+                            ]
+                    if redis_preload_folder:
+                        sys.argv.append('--redis_preload_folder')
+                        sys.argv.append(redis_preload_folder)
+                    controller.main()
                 return res, invoke
 
         return handler
