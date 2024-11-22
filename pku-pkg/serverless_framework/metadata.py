@@ -96,7 +96,6 @@ class Metadata:
         assert(self.redis_proxy)
         if not self.retval:
             self.retval = self.redis_proxy.extract(self._result_redis_key())
-            logging.info(self.retval)
             if self.retval:
                 self.finish_time = time.time()
                 return True
