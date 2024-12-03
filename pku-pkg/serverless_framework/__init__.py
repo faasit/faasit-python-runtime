@@ -1,3 +1,4 @@
-from .kv_cache import KVCache
-from .redis_db import RedisProxy
-from .metadata import Metadata
+from serverless_framework.kv_cache import KVCache
+from serverless_framework.redis_db import RedisProxy
+from serverless_framework.metadata import Metadata
+from serverless_framework.worker_metadata import WorkerMetadata

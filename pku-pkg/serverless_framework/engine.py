@@ -1,15 +1,16 @@
-from .serverless_utils import TransportMode, Address, final_outputs_prefix
 from typing import Callable, Dict, List, Any, Tuple
 from threading import Thread
-from .metadata import Metadata
 import time
 import logging
+
+from .serverless_utils import TransportMode, Address, final_outputs_prefix
+from .controller_metadata import ControllerMetadata
 
 class Engine:
     def __init__(self, 
             name: str,
             dependencies: Dict[str, List[str]],
-            exec_func: Dict[str, Callable[[], Metadata]],
+            exec_func: Dict[str, Callable[[], ControllerMetadata]],
             # for prewarm case that needs to launch containers in advance
             *,
             timing_func: List[Tuple[float, Callable[[], None]]] = [],
@@ -38,14 +39,15 @@ class Engine:
         
     def _execute(self) -> None:
         # stages that are executing (request acked by the worker)
-        executing: Dict[str, Metadata] = {}
-        success: Dict[str, Metadata] = {}
+        executing: Dict[str, ControllerMetadata] = {}
+        success: Dict[str, ControllerMetadata] = {}
 
         if len(self.exec_func) == 0:
             logging.error(f"Engine{self.name}: no stages to execute.")
             raise Exception("No stages to execute.")
-        logging.info(self.exec_func)
+        
         while len(success) < len(self.exec_func):
+            
             cur = time.time()
 
             for stage, metadata in executing.items():
@@ -98,7 +100,7 @@ class Engine:
 
         try: 
             # Get any md from this dict.
-            md: Metadata = next(iter(success.values()))
+            md: ControllerMetadata = next(iter(success.values()))
             proxy = md.redis_proxy
             assert(proxy)
 
@@ -131,7 +133,6 @@ class Engine:
             func()
 
         for t in self.timing_func:
-            logging.info(t)
             self.timer_task.append(Thread(target=executor, args=(t[0], t[1])))
 
         for t in self.timer_task:
