@@ -106,7 +106,6 @@ class DeploymentGenerator:
         return files
 
     def _replace_stage_varibles(self, lines: str, stage: str) -> str:
-        codeDir = self.profile['stage_profiles'][stage]['codeDir']
         return lines.replace('__app-name__', self.app_name)\
                     .replace('__stage-name__', stage)\
                     .replace('__node-name__', self.placement[stage])\
@@ -118,9 +117,7 @@ class DeploymentGenerator:
                     .replace('__worker-external-port__', str(self.profile['stage_profiles'][stage]['worker_external_port']))\
                     .replace('__cache-server-external-port__', str(self.profile['stage_profiles'][stage]['cache_server_external_port']))\
                     .replace('__parallelism__', str(self.profile['stage_profiles'][stage]['parallelism']))\
-                    .replace('__external-ip__', self.external_ip)\
-                    .replace('__host-path__', f'{os.getcwd()}/{codeDir}')\
-                    .replace('__cwd__', os.getcwd())
+                    .replace('__external-ip__', self.external_ip)
 
     def get_worker_commandlines(self) -> Dict[str, str]:
         # fetch from the profile yaml file
