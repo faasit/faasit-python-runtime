@@ -1,12 +1,9 @@
-from .serverless_utils import TransportMode, Address, Result, final_outputs_prefix
 from typing import Dict, List, Any, Optional, Union, Set
-from .sending import PostUntil200, tcp_cache_get
+import random
+
+from .serverless_utils import TransportMode, Address, Result
 from .redis_db import RedisProxy
 from .kv_cache import KVCache
-import random
-import time
-import logging
-import os
 
 '''
 Metadata is the ONLY interface between the worker and the framework.
@@ -65,173 +62,42 @@ class Metadata:
         self.redis_proxy = None
         self.worker_cache = None
 
-    # called by controller
-    def remote_call(self) -> Any:
-        logging.debug(f"Remote_call {self.id}: {self.schedule[self.stage].ip}:{self.schedule[self.stage].port}")
-        self.finish_time = 0
-        self.retval = None
-        self.call_time = time.time()
-        self.unique_execution_id = f'{self.id}-uid-{self.call_cnt}'
-        self.call_cnt += 1
-
-        try:
-            return PostUntil200(f"http://{self.schedule[self.stage].ip}:{self.schedule[self.stage].port}", 
-            {
-                "type": "lambda-call",
-                "metadata": self
-            }, timeout = self.remote_call_timeout, post_ratio=self.post_ratio)
-        except:
-            self.call_time = 0
-            raise
-    
     def _result_redis_key(self) -> str:
         return f"{self.unique_execution_id}-result"
-
-    # called by controller
-    def fetch_retval(self) -> bool:
-        '''
-        fetch success or failure status from redis
-        return True if the status is fetched, otherwise False
-        '''
-        assert(self.redis_proxy)
-        if not self.retval:
-            self.retval = self.redis_proxy.extract(self._result_redis_key())
-            if self.retval:
-                self.finish_time = time.time()
-                return True
-            else:
-                return False
-        else:
-            return True
-
-    # called by controller
-    def working(self) -> bool:
-        if self.call_time == 0:
-            raise Exception("remote_call() has not been called yet.")
-        return not self.retval
-    
-    # called by controller
-    def fail(self) -> bool:
-        if self.call_time == 0:
-            raise Exception("remote_call() has not been called yet.")
-        return isinstance(self.retval, Result.Err)
-
-    # called by controller
-    def succ(self) -> bool:
-        if self.call_time == 0:
-            raise Exception("remote_call() has not been called yet.")
-        return isinstance(self.retval, Result.Ok)
-
-    # called by controller
-    def get_reply(self) -> Optional[Union[Result.Ok, Result.Err]]:
-        if self.call_time == 0:
-            raise Exception("remote_call() has not been called yet.")
-        return self.retval
 
     def namespace_obj_prefix(self) -> str:
         return f"{self.execution_namespace}-"
 
-    # called by controller
-    def cache_clear(self, timeout = 10) -> None:
-        '''
-        send cache-clear request to the worker
-        '''
-        try:
-            PostUntil200(f"http://{self.schedule[self.stage].ip}:{self.schedule[self.stage].port}",
-                {
-                    "type": "cache-clear",
-                    "prefix": self.namespace_obj_prefix()
-                }, timeout = timeout, post_ratio=self.post_ratio)
-        except Exception as e:
-            logging.warning(f"Error occurred while sending cache-clear request to {self.id}: {str(e)}")
+    def set_all(self, _id: str, _unique_execution_id: str, 
+                _worker_cache: KVCache, _retval: Union[Result.Ok, Result.Err], 
+                _call_cnt: int, _call_time: float, _finish_time: float) -> None:
+        self.id = _id
+        self.unique_execution_id = _unique_execution_id
+        self.worker_cache = _worker_cache
+        self.retval = _retval
+        self.call_cnt = _call_cnt
+        self.call_time = _call_time
+        self.finish_time = _finish_time
 
+    def set_id(self, _id: str) -> None:
+        self.id = _id
+    
+    def set_unique_excutioin_id(self, _id: str) -> None:
+        self.unique_execution_id = _id
+    
+    def set_worker_cache(self, worker_cache: KVCache) -> None:
+        self.worker_cache = worker_cache
+    
+    def set_retval(self, retval: Union[Result.Ok, Result.Err]) -> None:
+        self.retval = retval
 
-    # ================== below is the interface for the worker ==================
+    def set_call_cnt(self, call_cnt: int) -> None:
+        self.call_cnt = call_cnt
+    
+    def set_call_time(self, call_time: float) -> None:
+        self.call_time = call_time
+    
+    def set_finish_time(self, finish_time: float) -> None:
+        self.finish_time = finish_time
 
-
-    def _through_redis(self, src_stage: Optional[str], dest_stage: Optional[str]) -> bool:
-        if src_stage == None or dest_stage == None:
-            return True
-        
-        return self.trans_mode is TransportMode.allRedis or \
-            self.trans_mode is TransportMode.auto and self.schedule[dest_stage].ip != self.schedule[src_stage].ip
-
-    # called by worker
-    def output(self, dest_stages: List[Optional[str]], key: str, obj: Any, *, active_send: Optional[bool] = False) -> None:
-        assert(self.worker_cache is not None)
-        final_outputs_key = self.namespace_obj_prefix() + final_outputs_prefix + key
-        key = self.namespace_obj_prefix() + key
-
-        has_put_on_redis: bool = False
-        has_put_on_worker_cache: bool = False
-
-        for dest_stage in dest_stages:
-            if self._through_redis(self.stage, dest_stage):
-                if has_put_on_redis == False:
-                    has_put_on_redis = True
-                    assert(self.redis_proxy is not None)
-                    if dest_stage is None:
-                        # Final outputs.
-                        outputs_key = final_outputs_key
-                    else:
-                        outputs_key = key
-                    self.redis_proxy.put(outputs_key, obj)
-            else:
-                if active_send:
-                    assert(dest_stage is not None)
-                    PostUntil200(f"http://{self.schedule[dest_stage].ip}:{self.schedule[dest_stage].port}", 
-                        {
-                            "type": "cache-put",
-                            "key": key,
-                            "value": obj
-                        })
-                else:
-                    if has_put_on_worker_cache == False:
-                        has_put_on_worker_cache = True
-                        logging.debug(f"Output {key} to {dest_stage} is buffered in the local cache.")
-                        self.worker_cache.put(key, obj)
-
-    # called by worker
-    def get_object(self, src_stage: Optional[str], key: str, timeout: Optional[float] = None, active_pull: bool = True, tcp_direct: bool = True) -> Optional[Any]:
-        '''
-        tcp_direct: if True, the function will not use http to fetch the object
-        '''
-        assert(self.worker_cache is not None)
-
-        if src_stage:
-            key = self.namespace_obj_prefix() + key
-        # Otherwise it is a global redis key
-
-        if self._through_redis(src_stage, self.stage):
-            assert(self.redis_proxy is not None)
-            return self.redis_proxy.get(key, timeout = timeout)
-        else:
-            if active_pull:
-                assert(src_stage is not None)
-                if tcp_direct:
-                    return tcp_cache_get(self.schedule[src_stage].ip, self.schedule[src_stage].cache_port, key, timeout = timeout or 5)
-                else:
-                    retval = PostUntil200(f"http://{self.schedule[src_stage].ip}:{self.schedule[src_stage].port}",
-                        {
-                            "type": "cache-get",
-                            "key": key,
-                        }, timeout = timeout or 5, post_ratio=self.post_ratio)
-                    return retval
-            else:
-                return self.worker_cache.get(key, timeout = timeout)
-
-    def get_existed_object(self, src_stage: Optional[str], key: str, timeout: Optional[float] = None, active_pull: bool = True, tcp_direct: bool = True) -> Any:
-        retval = self.get_object(src_stage, key, timeout, active_pull, tcp_direct)
-        if retval is None:
-            raise Exception(f"The request for key {key} unwraps failed: no such entry")
-        return retval
-
-    # called by worker
-    def update_status(self, status: Union[Result.Ok, Result.Err]) -> None:
-        assert(self.redis_proxy is not None)
-        self.redis_proxy.put(self._result_redis_key(), status)
-
-    def tmp_folder(self) -> str:
-        retval = f"/tmp/{self.unique_execution_id}/"
-        os.makedirs(retval, exist_ok = True)
-        return retval
+    

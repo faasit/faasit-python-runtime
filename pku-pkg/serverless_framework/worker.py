@@ -16,27 +16,31 @@ import importlib.util
 import http.server
 from socketserver import ThreadingMixIn
 import pickle
-from .metadata import Metadata
-from .kv_cache import KVCache
-from .redis_db import RedisProxy
+
 import logging
 import traceback
 from typing import Callable, Optional, Dict, Any, Set
 from concurrent.futures import ThreadPoolExecutor
-from .serverless_utils import Result
 import argparse
 import logging
 import cProfile
-from .cache_server import CacheServer
+
 from threading import Lock
+
+from .serverless_utils import Result
+from .worker_metadata import WorkerMetadata
+from .metadata import Metadata
+from .kv_cache import KVCache
+from .redis_db import RedisProxy
+from .cache_server import CacheServer
 
 lambda_file = None
 
-def default_lambda_handler(md: Metadata) -> Any:
+def default_lambda_handler(md: WorkerMetadata) -> Any:
     print("default_lambda_handler: ", md.params)
     return None
 
-lambda_handler: Callable[[Metadata], Any] = default_lambda_handler
+lambda_handler: Callable[[WorkerMetadata], Any] = default_lambda_handler
 
 # Read from secret tmpfs file.
 try:
@@ -72,17 +76,17 @@ def handler(identifier: str):
 class RequestBuffer:
     def __init__(self):
         self.lock = Lock()
-        self.queued_requests: Dict[str, Metadata] = {}
+        self.queued_requests: Dict[str, WorkerMetadata] = {}
 
-    def _get(self, identifier: str) -> Optional[Metadata]:
+    def _get(self, identifier: str) -> Optional[WorkerMetadata]:
         with self.lock:
             return self.queued_requests.get(identifier, None)
         
-    def _put(self, identifier: str, md: Metadata):
+    def _put(self, identifier: str, md: WorkerMetadata):
         with self.lock:
             self.queued_requests[identifier] = md
 
-    def try_push(self, identifier: str, md: Metadata) -> bool:
+    def try_push(self, identifier: str, md: WorkerMetadata) -> bool:
         with self.lock:
             if identifier in self.queued_requests:
                 # has previous
@@ -97,7 +101,7 @@ class RequestBuffer:
                 thread_pool.submit(handler, md.id)          # the order of these two lines is important
                 return True
         
-    def pop(self, identifier: str) -> Optional[Metadata]:
+    def pop(self, identifier: str) -> Optional[WorkerMetadata]:
         with self.lock:
             return self.queued_requests.pop(identifier, None)
 
@@ -116,8 +120,14 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
             logging.debug(f"Received request: {request_type}, data: {data}")
 
             if (request_type == 'lambda-call'):
-                metadata: Metadata = data.get('metadata')
-                assert(metadata is not None)
+                _metadata: Metadata = data.get('metadata')
+                assert(_metadata is not None)
+
+                metadata = WorkerMetadata(_metadata.execution_namespace, _metadata.stage, _metadata.schedule, 
+                                          _metadata.trans_mode,_metadata.params, _metadata.redis_proxy, 
+                                          _metadata.remote_call_timeout, _metadata.post_ratio)
+                metadata.set_all(_metadata.id, _metadata.unique_execution_id, _metadata.worker_cache,
+                                _metadata.retval, _metadata.call_cnt, _metadata.call_time, _metadata.finish_time)
 
                 logging.debug(f"mode: {metadata.trans_mode}")
                 logging.debug(f"schedule: {str(metadata.schedule)}")
@@ -265,4 +275,4 @@ if __name__ == "__main__":
         if args.profiling:
             assert(profiler)
             profiler.disable()
-            profiler.dump_stats(f'./worker_{function_name}.prof')
+            profiler.dump_stats(f'/worker_{function_name}.prof')
