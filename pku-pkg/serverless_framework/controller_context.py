@@ -4,7 +4,7 @@ from typing import Dict, List, Any, Callable, Tuple, Optional, Set
 import time
 
 from .funciton_placer import DeploymentGenerator
-from .serverless_utils import TransportMode, Address
+from .serverless_utils import TransportMode, Address, RuntimeType
 from .redis_db import RedisProxy
 
 class ControllerContext:
@@ -15,7 +15,8 @@ class ControllerContext:
               ditto_placement: bool, launch: str, debug: bool, failure_tolerance: int,
               getoutputs: bool, remote_call_timeout: float, redis_wait_time: float,
               post_ratio: float, knative: bool, redis_yaml: str, redis_ip: str, 
-              redis_port: int, redis_password: str, redis_preload_folder: str) -> None:
+              redis_port: int, redis_password: str, redis_preload_folder: str, 
+              runtime: bool, start_mode: str) -> None:
         self.transmode: TransportMode = TransportMode[transmode]
         self.profile_path: str = profile
         self.test_parallelism: int = para
@@ -34,6 +35,9 @@ class ControllerContext:
         self.redis_port: int = redis_port          # has to match redis_yaml
         self.redis_password: str = redis_password  # has to match redis_yaml
         self.redis_preload_folder: str = redis_preload_folder
+        # Whether to use a different runtime
+        self.runtime: RuntimeType = RuntimeType[runtime]
+        self.start_mode = start_mode
 
         import yaml
         with open(self.profile_path, 'r') as f:
@@ -41,7 +45,7 @@ class ControllerContext:
             self.app_name: str = self.profile['app_name']
             self.stages: List[str] = list(self.profile['stage_profiles'].keys())
 
-        self.deploy = DeploymentGenerator(self.profile_path, self.ditto_placement is False, knative = self.knative)
+        self.deploy = DeploymentGenerator(self.profile_path, self.ditto_placement is False, knative = self.knative, runtime = self.runtime,start_mode=self.start_mode)
         self.schedule: Dict[str, Address] = self.deploy.getIngress()
         self.params: Dict[str, Dict[str, Any]] = self.profile.get('default_params')
 

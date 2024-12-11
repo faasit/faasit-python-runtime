@@ -8,7 +8,7 @@ setup(
     install_requires=[
         "pydantic==1.10.8",
         "python-dotenv==1.0.1",
-        'serverless-framework==0.0.2'
+        'serverless-framework==0.0.3'
     ],
     packages=find_packages(),
     python_requires='>=3.10',

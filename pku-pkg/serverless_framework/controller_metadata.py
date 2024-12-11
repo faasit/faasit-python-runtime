@@ -8,7 +8,7 @@ from typing import Any, Optional, Union, Dict
 import time
 
 class ControllerMetadata(Metadata):
-    def remote_call(self) -> Any:
+    def remote_call(self, callmode='lambda-call') -> Any:
         logging.debug(f"Remote_call {self.id}: {self.schedule[self.stage].ip}:{self.schedule[self.stage].port}")
         self.finish_time = 0
         self.retval = None
@@ -22,15 +22,25 @@ class ControllerMetadata(Metadata):
         metadata.set_all(self.id, self.unique_execution_id, self.worker_cache, self.retval, self.call_cnt,
                          self.call_time, self.finish_time)
 
-        try:
-            return PostUntil200(f"http://{self.schedule[self.stage].ip}:{self.schedule[self.stage].port}", 
-            {
-                "type": "lambda-call",
-                "metadata": metadata
-            }, timeout = self.remote_call_timeout, post_ratio=self.post_ratio)
-        except:
-            self.call_time = 0
-            raise
+        if callmode == 'lambda-call':
+            try:
+                return PostUntil200(f"http://{self.schedule[self.stage].ip}:{self.schedule[self.stage].port}", 
+                {
+                    "type": "lambda-call",
+                    "metadata": metadata
+                }, timeout = self.remote_call_timeout, post_ratio=self.post_ratio)
+            except:
+                self.call_time = 0
+                raise
+        elif callmode == 'fast-start':
+            try:
+                return PostUntil200(f"http://{self.schedule[self.stage].ip}:{self.schedule[self.stage].port}",{
+                    "type": "fast-start",
+                    'metadata': metadata
+                })
+            except:
+                self.call_time = 0
+                raise
 
     def fetch_retval(self) -> bool:
         '''

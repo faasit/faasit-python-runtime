@@ -10,19 +10,21 @@ from collections import namedtuple
 import logging
 import kubernetes as k8s
 
-from .serverless_utils import Address, DuplicatedPortChecker
+from .serverless_utils import Address, DuplicatedPortChecker, RuntimeType
 from .placement import get_topo, DittoPlacer
 
 PerformanceProfile = namedtuple('Profile', ['compute_time', 'input_time', 'output_time', 'minimum_vcpu'])
 Edge = namedtuple('Edge', ['src', 'dst', 'weight'])
 
 class DeploymentGenerator:
-    def __init__(self, profile_path: str, random_placement: bool, *, local_placement: bool = False, knative: bool = False) -> None:
+    def __init__(self, profile_path: str, random_placement: bool, *, local_placement: bool = False, knative: bool = False, runtime: RuntimeType,start_mode:str) -> None:
         # load the profile
         with open(profile_path, 'r') as f:
             self.profile = yaml.safe_load(f)
 
         self.knative = knative
+        self.runtime = runtime
+        self.start_mode = start_mode
         # self.node_resources: Dict[str, Dict[str, int]] = self.profile['node_resources']
         self.node_resources: Dict[str, Dict[str, int]] = self.get_node_info()
         self.nodes: Set[str] = set(self.node_resources.keys())
@@ -106,6 +108,9 @@ class DeploymentGenerator:
         return files
 
     def _replace_stage_varibles(self, lines: str, stage: str) -> str:
+        is_privileged = 'false'
+        if self.start_mode == 'fast-start':
+            is_privileged = 'true'
         return lines.replace('__app-name__', self.app_name)\
                     .replace('__stage-name__', stage)\
                     .replace('__node-name__', self.placement[stage])\
@@ -117,7 +122,8 @@ class DeploymentGenerator:
                     .replace('__worker-external-port__', str(self.profile['stage_profiles'][stage]['worker_external_port']))\
                     .replace('__cache-server-external-port__', str(self.profile['stage_profiles'][stage]['cache_server_external_port']))\
                     .replace('__parallelism__', str(self.profile['stage_profiles'][stage]['parallelism']))\
-                    .replace('__external-ip__', self.external_ip)
+                    .replace('__external-ip__', self.external_ip)\
+                    .replace('__privileged__', is_privileged)
 
     def get_worker_commandlines(self) -> Dict[str, str]:
         # fetch from the profile yaml file
@@ -159,18 +165,27 @@ class DeploymentGenerator:
 
         return container_start_time
 
+    def is_usable_node(self, labels: Dict[str, str]) -> bool:
+        is_control_plane = "node-role.kubernetes.io/master" in labels or "node-role.kubernetes.io/control-plane" in labels
+        if self.runtime == RuntimeType.default:
+            return (not is_control_plane) and (not "runtime" in labels)
+        else:
+            rt = str(self.runtime).split('.')[1]
+            return (not is_control_plane) and ("runtime" in labels) and (labels["runtime"] == rt)
+
+
     def get_node_info(self) -> Dict[str, Dict[str, int]]:
         total_ret: Dict[str, Dict[str, int]] = {}
         k8s.config.load_kube_config()
         v1 = k8s.client.CoreV1Api()
         nodes = v1.list_node()
-        # print(nodes)
+
         for node in nodes.items:
             labels = node.metadata.labels
-            is_control_plane = "node-role.kubernetes.io/master" in labels or "node-role.kubernetes.io/control-plane" in labels
+            
             # skip the control plane in the node list
-            # if is_control_plane:
-                # continue
+            if self.is_usable_node(labels) is False and len(nodes.items) > 1:
+                continue
 
             node_ret: Dict[str, int] = {}
             node_name = node.metadata.name

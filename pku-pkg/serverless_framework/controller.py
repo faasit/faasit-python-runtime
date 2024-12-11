@@ -65,6 +65,9 @@ def resolve_args():
     parser.add_argument('--redis_ip', type=str,         default="10.0.0.100")
     parser.add_argument('--redis_port', type=int,       default=6379)
     parser.add_argument('--redis_password', type=str,   default="293r9vfT7dfa&^")
+
+    parser.add_argument('--runtime', type=str,          default='default') 
+    parser.add_argument('--start_mode', type=str,     default='lambda-call')
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO, 
@@ -76,7 +79,8 @@ def resolve_args():
               remote_call_timeout=args.remote_call_timeout, redis_wait_time=args.redis_wait_time,
               post_ratio=args.post_ratio, knative=args.knative, redis_yaml=args.redis_yaml,
               redis_ip=args.redis_ip, redis_port=args.redis_port, redis_password=args.redis_password,
-              redis_preload_folder=args.redis_preload_folder)
+              redis_preload_folder=args.redis_preload_folder, runtime=args.runtime,
+              start_mode=args.start_mode)
 
 if __name__ == "__main__":
     resolve_args()

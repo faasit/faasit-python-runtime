@@ -171,7 +171,8 @@ class WorkflowReqHandler:
                             self.is_worker_launched.value[stage] = True
                         self.is_worker_launched.lock.release()
 
-                    mds[stage].remote_call()
+                    callmode = ctx.start_mode
+                    mds[stage].remote_call(callmode)
                     return mds[stage]
                 return sender
             

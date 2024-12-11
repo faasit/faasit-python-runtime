@@ -72,6 +72,12 @@ def handler(identifier: str):
         md.update_status(Result.Ok(retval))
         logging.info(f"Lambda function {md.id} executed successfully, queuing: {thread_pool._work_queue.qsize()} reqs. return value: {retval} ")
 
+def fast_start(path: str = '/mitosis/run.sh', md: WorkerMetadata = None):
+    import subprocess
+    ret = subprocess.run(['bash',path], capture_output=True,text=True)
+    if md is not None:
+        md.update_status(Result.Ok(ret.stdout))
+
 
 class RequestBuffer:
     def __init__(self):
@@ -140,6 +146,29 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
                     logging.info(f"Lambda function {metadata.unique_execution_id} is added into the queue, queuing: {thread_pool._work_queue.qsize()} reqs.")
                 else:
                     logging.info(f"An older lambda call {metadata.unique_execution_id} is ignored. queuing: {thread_pool._work_queue.qsize()} reqs.")
+
+                self.send_response(200)
+                self.send_header('Content-type', 'application/octet-stream')
+                self.end_headers()
+
+            elif (request_type == 'fast-start'):
+                _metadata: Metadata = data.get('metadata')
+                assert(_metadata is not None)
+
+                metadata = WorkerMetadata(_metadata.execution_namespace, _metadata.stage, _metadata.schedule, 
+                                          _metadata.trans_mode,_metadata.params, _metadata.redis_proxy, 
+                                          _metadata.remote_call_timeout, _metadata.post_ratio)
+                metadata.set_all(_metadata.id, _metadata.unique_execution_id, _metadata.worker_cache,
+                                _metadata.retval, _metadata.call_cnt, _metadata.call_time, _metadata.finish_time)
+
+                logging.debug(f"mode: {metadata.trans_mode}")
+                logging.debug(f"schedule: {str(metadata.schedule)}")
+                logging.debug(f"execution_namespace: {metadata.execution_namespace}")
+
+                metadata.redis_proxy = redis_proxy
+                metadata.worker_cache = kv_cache
+                import multiprocessing
+                multiprocessing.Process(target=fast_start, kwargs={"md":metadata}).start()
 
                 self.send_response(200)
                 self.send_header('Content-type', 'application/octet-stream')

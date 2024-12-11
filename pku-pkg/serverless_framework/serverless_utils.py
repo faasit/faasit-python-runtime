@@ -8,6 +8,10 @@ class TransportMode(Enum):
     allRedis = auto()
     auto = auto() # local tcp, remote redis
 
+class RuntimeType(Enum):
+    default = auto()
+    runvk = auto()
+
 Address = namedtuple('Address', ['ip', 'port', 'cache_port'])
 LockPair = namedtuple('LockPair', ['lock', 'value'])
 final_outputs_prefix : str = '__final_outputs__'
