@@ -33,7 +33,7 @@ def transformfunction(fn: type_Function) -> type_Function:
             return fn(frt)
         return aliyun_function
     elif provider == 'knative':
-        def kn_function(event) -> FaasitResult:
+        def kn_function(event,metadata: FaasitRuntimeMetadata=None) -> FaasitResult:
             KnativeRuntime = load_runtime('knative')
             frt = KnativeRuntime(event)
             return fn(frt)
@@ -129,6 +129,13 @@ def create_handler(fn_or_workflow : type_Function | Workflow):
                 result = workflow.execute(event)
                 return result
             return handler
+        elif provider == 'knative':
+            def handler(event:dict, metadata:FaasitRuntimeMetadata = None):
+                KnativeRuntime = load_runtime('knative')
+                frt = KnativeRuntime(event)
+                workflow.setRuntime(frt)
+                return workflow.execute(event)
+            return handler
         elif provider == 'pku':
             def handler():
                 dag_json = workflow.validate()
@@ -138,41 +145,16 @@ def create_handler(fn_or_workflow : type_Function | Workflow):
                 for stage, value in dag_json.items():
                     pre = value['pre']
                     params = value['params']
-                    for para, para_val in params.items():
-                        if para == 'params':
-                            res['default_params'][stage] = para_val
-                            break
+                    if res['default_params'].get(stage) == None:
+                        res['default_params'][stage] = {}
+                    res['default_params'][stage].update(params)
                     res['DAG'][stage] = pre
-                def invoke(profile_path:str,redis_preload_folder:str=None):
-                    import sys
-                    import os
-                    from serverless_framework import controller
-                    sys.argv = ['serverless_framework/controller.py',
-                                '--repeat',
-                                '2',
-                                '--launch',
-                                'tradition',
-                                '--transmode',
-                                'allTCP',
-                                '--profile',
-                                profile_path,
-                            ]
-                    if redis_preload_folder:
-                        sys.argv.append('--redis_preload_folder')
-                        sys.argv.append(redis_preload_folder)
-                    controller.main()
-                return res, invoke
+                return res
 
         return handler
     else: #type(fn) == type_Function:
-        provider = container_conf['provider']
-        if provider == 'aliyun':
-            def handler(event: dict, *args):
-                return asyncio.run(fn_or_workflow(event, *args))
-            return handler
-        else:
-            def handler(event: dict, *args):
-                return fn_or_workflow(event, *args)
-            return handler
+        def handler(event: dict, *args):
+            return fn_or_workflow(event, *args)
+        return handler
 
 __all__ = ["function","workflow","durable","create_handler"]
