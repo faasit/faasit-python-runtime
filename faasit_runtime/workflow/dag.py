@@ -213,7 +213,7 @@ class DAG:
                         if res[suf_ctl_name].get('params') == None:
                             res[suf_ctl_name]['params'] = {}
                         res[suf_ctl_name]['pre'].append(pre_ctl_name)
-                        res[suf_ctl_name]['params'] = {ctl.ld_to_key[node.ld]: node.ld.value}
+                        # res[suf_ctl_name]['params'] = {ctl.ld_to_key[node.ld]: node.ld.value}
                 else:
                     for ctl in node.succ_control_nodes:
                         ctl: ControlNode
@@ -224,9 +224,15 @@ class DAG:
                             res[suf_ctl_name]['pre'] = []
                         if res[suf_ctl_name].get('params') == None:
                             res[suf_ctl_name]['params'] = {}
-                        res[suf_ctl_name]['params'] = {ctl.ld_to_key[node.ld]: node.ld.value}    
-            # if isinstance(node, ControlNode):
-            #     res[node] = node.get_pre_data_nodes() == []
+                        res[suf_ctl_name]['params'].update({ctl.ld_to_key[node.ld]: node.ld.value})   
+            if isinstance(node, ControlNode):
+                ctl_name = node.name
+                if res.get(ctl_name) == None:
+                    res[ctl_name] = {}
+                if res[ctl_name].get('pre') == None:
+                    res[ctl_name]['pre'] = []
+                if res[ctl_name].get('params') == None:
+                    res[ctl_name]['params'] = {}
         return res
 
     def hasDone(self) -> bool:
