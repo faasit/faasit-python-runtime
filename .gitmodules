@@ -1,4 +1,4 @@
-[submodule "serverless-framework"]
+[submodule "third_party/serverless-framework"]
 	path = third_party/serverless-framework
 	url = git@github.com:serverless-project/serverless-framework.git
 	branch = dydy/fast-start
