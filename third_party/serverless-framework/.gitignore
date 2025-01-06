@@ -1,0 +1,3 @@
+/build/*
+/dist/*
+/serverless_framework.egg-info/*
