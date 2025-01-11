@@ -11,7 +11,8 @@ from .faasit_runtime import (
 )
 from ..workflow import RouteRunner
 from typing import Any, List
-import asyncio
+import pickle
+import logging
 
 class LocalOnceRuntime(FaasitRuntime):
     name: str = 'local-once'
@@ -23,7 +24,8 @@ class LocalOnceRuntime(FaasitRuntime):
         self._input = data
         self._workflow_runner = workflow_runner
         self._metadata = metadata
-        self._storage = self.LocalStorage()
+        local_store_dir = os.environ.get('LOCAL_STORAGE_DIR', './local_storage')
+        self._storage = self.LocalStorage(local_store_dir)
 
     def set_workflow(self, workflow_runner: RouteRunner):
         self._workflow_runner = workflow_runner
@@ -97,50 +99,57 @@ class LocalOnceRuntime(FaasitRuntime):
         return self._storage
     
     class LocalStorage(StorageMethods):
-        def __init__(self):
-            self.storage_path = "./local_storage/"
-            if not os.path.exists(self.storage_path):
-                os.makedirs(self.storage_path)
+        def __init__(self, store_path: str = './local_storage') -> None:
+            self.storage_path = os.path.abspath(store_path)
+        
+        def check_and_make_dir(fn):
+            def wrapper(self, *args, **kwargs):
+                if not os.path.exists(self.storage_path):
+                    os.makedirs(self.storage_path)
+                return fn(self, *args, **kwargs)
+            return wrapper
 
-        def put(self, filename, data: bytes) -> None:
-            file_path = self.storage_path + filename
+        @check_and_make_dir
+        def put(self, filename, data) -> None:
+            file_path = os.path.join(self.storage_path,filename)
             dir_name = os.path.dirname(file_path)
             os.makedirs(dir_name, exist_ok=True)
             self._acquire_filelock(file_path)
             with open(file_path, "wb") as f:
-                f.write(data)
+                f.write(pickle.dumps(data))
                 f.flush()
-            print(f"[storage put] Put data into {file_path} successfully.")
+            logging.debug(f"[storage put] Put data into {file_path} successfully.")
             self._release_filelock(file_path)
 
+        @check_and_make_dir
         def get(self, filename, timeout = -1) -> bytes:
-            file_path = self.storage_path + filename
+            file_path = os.path.join(self.storage_path,filename)
             start_t = time.time()
             while not os.path.exists(file_path):
                 time.sleep(0.001)
                 if timeout > 0:
                     if time.time() - start_t > timeout / 1000: return None
             self._wait_filelock(file_path)
-            while True:
-                with open(file_path, "rb") as f:
+            with open(file_path, "rb") as f:
+                try:
+                    data = pickle.load(f)
+                except:
                     data = f.read()
-                data_len = len(data)
-                if data_len == 0:
-                    print(f"[storage get] read error of {file_path}, retry ...")
-                    time.sleep(0.001)
-                    continue
-                break
-            return data
+                logging.debug(f"[storage get] Get data from {file_path} successfully. Value is {data}")
+                return data
 
+        @check_and_make_dir
         def list(self) -> List:
             return [f for f in os.listdir(self.storage_path) if not f.endswith(".lock")]
 
+        @check_and_make_dir
         def exists(self, filename: str) -> bool:
-            file_path = self.storage_path + filename
+            file_path = os.path.join(self.storage_path,filename)
             return os.path.exists(file_path)
 
+        @check_and_make_dir
         def delete(self, filename: str) -> None:
-            file_path = self.storage_path + filename
+            file_path = os.path.join(self.storage_path,filename)
             if os.path.exists(file_path):
                 self._acquire_filelock(file_path)
                 os.remove(file_path)

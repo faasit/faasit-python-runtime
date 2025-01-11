@@ -1,5 +1,7 @@
-from faasit_runtime.durable.models.localonce import localonce_durable
+from .localonce import localonce_durable
+from .pku import pku_durable
 
 __all__ = [
-    'localonce_durable'
+    'localonce_durable',
+    'pku_durable'
 ]

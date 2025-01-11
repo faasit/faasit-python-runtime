@@ -5,7 +5,7 @@ from faasit_runtime.runtime import (
     FaasitRuntime
 )
 
-async def callback(result,frt:FaasitRuntime):
+def callback(result,frt:FaasitRuntime):
     metadata = frt.metadata()
     if len(metadata.stack) == 0:
         return result
@@ -18,10 +18,10 @@ async def callback(result,frt:FaasitRuntime):
             callback=None,
             responseCtx=lastInvocation.callback.ctx
         )
-        result = await frt.tell(lastInvocation.caller.funcName, callbackParams.dict())
+        result = frt.tell(lastInvocation.caller.funcName, callbackParams.dict())
         return result
     
-async def popStack(result, metadata: FaasitRuntimeMetadata):
+def popStack(result, metadata: FaasitRuntimeMetadata):
     if len(metadata.stack) == 0:
         return result
     lastInvocation = metadata.stack[-1]

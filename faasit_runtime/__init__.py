@@ -1,4 +1,4 @@
-from .durable import durable
+from .durable import durable_helper
 
 from faasit_runtime.runtime import (
     FaasitRuntime, 
@@ -13,7 +13,6 @@ from faasit_runtime.utils import (
 )
 from faasit_runtime.workflow import Workflow,Route,RouteBuilder,RouteRunner
 from typing import Callable, Set, Any, List, Dict, Optional
-import asyncio
 
 type_Function = Callable[[Any], FaasitResult]
 
@@ -46,6 +45,8 @@ def transformfunction(fn: type_Function) -> type_Function:
                             metadata: FaasitRuntimeMetadata = None
                             ):
             LocalOnceRuntime = load_runtime('local-once')
+            if metadata is None:
+                metadata = createFaasitRuntimeMetadata(fn.__name__)
             frt = LocalOnceRuntime(event, workflow_runner, metadata)
             result = fn(frt)
             return result
@@ -60,6 +61,11 @@ def transformfunction(fn: type_Function) -> type_Function:
         raise ValueError(f"Invalid provider {containerConf['provider']}")
 
 routeBuilder = RouteBuilder()
+
+def durable(fn: type_Function) -> type_Function:
+    new_func = durable_helper(fn)
+    routeBuilder.func(fn.__name__).set_handler(new_func)
+    return new_func
 
 def function(*args, **kwargs):
     # Read Config for different runtimes

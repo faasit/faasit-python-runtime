@@ -1,29 +1,32 @@
 from faasit_runtime.runtime import (
+    FaasitRuntimeMetadata,
     load_runtime,
-    FaasitRuntimeMetadata
+    FaasitRuntime,
+    createFaasitRuntimeMetadata
 )
 
-from faasit_runtime.durable.state import (
+from ..state import (
     DurableFunctionState,
-    ScopedDurableStateClient
+    ScopedDurableStateClient,
+    DurableStateClient
 )
 
-from faasit_runtime.durable.metadata import (
+from ..metadata import (
     DurableMetadata,
     OrchestratorMetadata,
 )
 
-from faasit_runtime.durable.context import (
+from ..context import (
     DurableCallbackContext,
     parseDurableCallbackContext
 )
 
-from faasit_runtime.durable.runtime import (
+from ..runtime import (
     DurableRuntime,
     DurableException
 )
 
-from faasit_runtime.durable.result import (
+from ..result import (
     DurableWaitingResult
 )
 from faasit_runtime.utils import (
@@ -36,6 +39,14 @@ import uuid
 def createOrchestratorScopedId(orcheId:str):
     return f"orchestrator::__state__::{orcheId}"
 
+class ActorState(DurableStateClient):
+    def __init__(self, frt:FaasitRuntime):
+        self.frt = frt
+    def set(self,key:str,value):
+        return self.frt.storage.put(key,value)
+    def get(self,key:str):
+        return self.frt.storage.get(key,timeout=1)
+
 def localonce_durable(fn):
     localonceClients : dict[str,ScopedDurableStateClient] = {}
     localonceResults : dict[str,DurableWaitingResult] = {}
@@ -47,17 +58,21 @@ def localonce_durable(fn):
                       workflow_runner = None,
                       metadata = None):
         LocalOnceRuntime = load_runtime('local-once')
+        if metadata is None:
+            metadata = createFaasitRuntimeMetadata(fn.__name__)
         frt = LocalOnceRuntime(event,workflow_runner,metadata)
         frt_metadata: FaasitRuntimeMetadata = frt.metadata()
         # print(f"[Debug] {frt_metadata.dict()}")
         callbackCtx : DurableCallbackContext = None
 
         # special judge
-        last_invocation = frt_metadata.stack[-1]
-        if last_invocation.kind == 'tell':
-            # 拿到上一轮的callbackCtx并退栈
-            callbackCtx = parseDurableCallbackContext(last_invocation.response.responseCtx)
-            # frt_metadata.stack.pop()
+        last_invocation = None
+        if len(frt_metadata.stack) != 0 :
+            last_invocation = frt_metadata.stack[-1]
+            if last_invocation.kind == 'tell':
+                # 拿到上一轮的callbackCtx并退栈
+                callbackCtx = parseDurableCallbackContext(last_invocation.response.responseCtx)
+                # frt_metadata.stack.pop()
 
         if callbackCtx is not None:
             # not first-call
@@ -82,6 +97,7 @@ def localonce_durable(fn):
         scopeId = createOrchestratorScopedId(orchestratorMetadataId)
         client = getClient(scopeId)
         state, init = DurableFunctionState.load(client)
+        actorState = ActorState(frt)
 
         if callbackCtx is not None:
             result = frt.input()
@@ -90,14 +106,13 @@ def localonce_durable(fn):
             action.result = result
             state.store(client)
 
-        dfrt = DurableRuntime(frt,durableMetadata,state)
+        dfrt = DurableRuntime(frt,durableMetadata,state,actorState)
         
         try:
             result = fn(dfrt)
             state.saveResult(client,result)
             callback(result,frt)
             # await popStack(result,frt_metadata)
-            localonceResults[orchestratorMetadataId].setResult(result)
             return result
         except DurableException as e:
             print(f"[Trace] {frt_metadata.funcName}::{orchestratorMetadataId} yield")

@@ -1,4 +1,4 @@
-from faasit_runtime.durable.metadata import OrchestratorMetadata
+from .metadata import OrchestratorMetadata
 from pydantic import BaseModel
 
 class DurableCallbackContext(BaseModel):

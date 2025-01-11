@@ -1,9 +1,10 @@
-from faasit_runtime.durable.metadata import FaasitRuntimeMetadata, FaasitRuntime,DurableMetadata
-from faasit_runtime.durable.state import (
+from .metadata import FaasitRuntime,DurableMetadata
+from .state import (
     DurableFunctionState,
-    Action
+    Action,
+    DurableStateClient
 )
-from faasit_runtime.durable.context import (
+from .context import (
     DurableCallbackContext
 )
 from faasit_runtime.runtime import (
@@ -21,11 +22,13 @@ class DurableRuntime(FaasitRuntime):
     def __init__(self, 
                  frt: FaasitRuntime,
                  durableMetadata: DurableMetadata,
-                 state: DurableFunctionState):
+                 state: DurableFunctionState,
+                 client:DurableStateClient):
         self._pc = 0
         self._frt = frt
         self._state = state
         self._durable_metadata = durableMetadata
+        self._client = client
 
     def state(self):
         return self._state
@@ -35,8 +38,12 @@ class DurableRuntime(FaasitRuntime):
         return self._frt.output(_out)
     def metadata(self):
         return self._durable_metadata
+    
+    @property
+    def storage(self):
+        return self._frt.storage
 
-    async def call(self, fnName:str, fnParams: InputType):
+    def call(self, fnName:str, fnParams: InputType):
         self._pc += 1
         pc = self._pc
 
@@ -61,10 +68,15 @@ class DurableRuntime(FaasitRuntime):
             callback=callback,
             responseCtx=self._durable_metadata.runtimeData
         )
-        task = await self._frt.tell(fnName, fnParams.dict())
+        task = self._frt.tell(fnName, fnParams.dict())
         self._state.add_action(Action(kind='call', status='pending', result={}))
 
         raise DurableException(task)
 
     async def tell(self, fnName:str, fnParams: TellParams):
         return await self._frt.tell(fnName, fnParams)
+    
+    def setState(self, key, value):
+        self._client.set(key, value)
+    def getState(self, key):
+        return self._client.get(key)
