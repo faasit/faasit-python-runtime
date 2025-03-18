@@ -12,6 +12,11 @@ setup(
     extras_require={
         "pku": [
             'serverless-framework==1.0.0',
+        ],
+        'kn': [
+            "requests==2.26.0",
+            'redis==5.2.1',
+            'rocketmq-client-python==2.0.1rc1'
         ]
     },
     packages=find_packages(),
