@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Literal
 from faasit_runtime.runtime import CallResult
 import json
-import redis
+# import redis
 
 class DurableStateClient(ABC):
 
@@ -88,20 +88,20 @@ class DurableFunctionState(DurableState):
         state._actions = client.get("actions", list())
         return (state, False)
     
-    @staticmethod
-    def loads(key):
-        redis_client = redis.Redis(host='redis', port=6379, db=0)
-        redis_value = redis_client.get(key)
-        serializedState = json.loads(redis_value)
+    # @staticmethod
+    # def loads(key):
+    #     redis_client = redis.Redis(host='redis', port=6379, db=0)
+    #     redis_value = redis_client.get(key)
+    #     serializedState = json.loads(redis_value)
 
-        functionId = serializedState['functionId']
-        funcStates = serializedState['funcstates']
-        client = ScopedDurableStateClient.load(functionId, json.loads(funcStates))
+    #     functionId = serializedState['functionId']
+    #     funcStates = serializedState['funcstates']
+    #     client = ScopedDurableStateClient.load(functionId, json.loads(funcStates))
         
-        actions = serializedState['actions']
-        state = DurableFunctionState()
-        state._actions = [Action(**action) for action in actions]
-        return (state,client)
+    #     actions = serializedState['actions']
+    #     state = DurableFunctionState()
+    #     state._actions = [Action(**action) for action in actions]
+    #     return (state,client)
     
     def store(self, client: ScopedDurableStateClient):
         client.set('actions', self._actions)
@@ -133,9 +133,9 @@ class DurableFunctionState(DurableState):
             'result': result
         }
     
-    def to_redis(self,fnName:str,client:ScopedDurableStateClient):
-        key = fnName + "::" + client._scopedId
-        redis_client = redis.Redis(host='redis', port=6379, db=0)
-        redis_client.set(key, json.dumps(self.to_dict(client)))
-        redis_client.close()
-        return (key, json.dumps(self.to_dict(client)))
+    # def to_redis(self,fnName:str,client:ScopedDurableStateClient):
+    #     key = fnName + "::" + client._scopedId
+    #     redis_client = redis.Redis(host='redis', port=6379, db=0)
+    #     redis_client.set(key, json.dumps(self.to_dict(client)))
+    #     redis_client.close()
+    #     return (key, json.dumps(self.to_dict(client)))

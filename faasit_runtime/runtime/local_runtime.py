@@ -11,29 +11,34 @@ import requests
 import aiohttp
 import redis
 
+import json
 from typing import Any
+from faasit_runtime.serverless_function import Metadata
 
 class LocalRuntime(FaasitRuntime):
     name: str = 'local'
-    def __init__(self, data, metadata:FaasitRuntimeMetadata) -> None:
+    def __init__(self, metadata: Metadata) -> None:
         super().__init__()
-        self._input = data
+        self._input = metadata._params
+        self._id = metadata._id
         self._storage = self.LocalStorage()
         self._metadata = metadata
 
     def input(self):
-        return self._input
+        result = None
+        try:
+            result = json.loads(self._input)
+        except Exception as e:
+            result = self._input
+        return result
 
     def output(self, _out):
-        return {
-            'status' : "finished",
-            'result' : _out
-        }
+        return _out
 
     def metadata(self):
         return self._metadata
 
-    async def call(self, fnName: str, fnParams: InputType) -> CallResult:
+    def call(self, fnName: str, fnParams) -> CallResult:
         fnParams: CallParams
         try:
             fnParams = CallParams(**fnParams)

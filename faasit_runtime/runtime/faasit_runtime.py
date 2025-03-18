@@ -66,10 +66,10 @@ def createFaasitRuntimeMetadata(fnName:str) -> FaasitRuntimeMetadata:
     return FaasitRuntimeMetadata(funcName=fnName, stack=[])
 
 class StorageMethods(ABC):
-    def put(self, filename: str, data: bytes, **opts) -> None:
+    def put(self, filename: str, data: bytes) -> None:
         pass
 
-    def get(self, filename: str, **opts) -> bytes:
+    def get(self, filename: str, timeout = -1) -> bytes:
         pass
 
     def list(self) -> List:
@@ -101,12 +101,12 @@ class FaasitRuntime(ABC):
 
     @classmethod
     @abstractmethod
-    async def call(self, fnName: str, fnParams: CallParams) -> CallResult:
+    def call(self, fnName: str, fnParams: CallParams) -> CallResult:
         pass
 
     @classmethod
     @abstractmethod
-    async def tell(self, fnName:str, fnParams: TellParams) -> Awaitable[TellResult]:
+    def tell(self, fnName:str, fnParams: TellParams) -> Awaitable[TellResult]:
         pass
 
     @property

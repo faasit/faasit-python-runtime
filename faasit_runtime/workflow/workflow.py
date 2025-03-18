@@ -1,11 +1,11 @@
-from typing import Callable,Dict,TYPE_CHECKING
-from faasit_runtime.utils import get_function_container_config
-from faasit_runtime.workflow.dag import DAG, ControlNode,DataNode
-from faasit_runtime.workflow.ld import Lambda
+from typing import Callable,Dict,TYPE_CHECKING,Any
+from ..utils import get_function_container_config
+from .dag import DAG, ControlNode,DataNode
+from .ld import Lambda
 from ..runtime import FaasitRuntime
-
-from faasit_runtime.workflow.route import Route,RouteRunner
-from ..api import invoke
+from .executor import Executor
+from .route import Route,RouteRunner
+from ..utils.logging import log
 
 class WorkflowInput:
     def __init__(self,workflow:"Workflow") -> None:
@@ -27,17 +27,25 @@ class WorkflowInput:
 class Workflow:
     def __init__(self,route:Route = None, name:str= None) -> None:
         self.route = route
-        self.params:Dict[str,Lambda] = {}
+        self.params:Dict[str,Any] = {}
         self.dag = DAG(self)
         self.frt: FaasitRuntime = None
         self.name: str = name
+        self._executor_cls:Executor = None
         pass
+    def copy(self):
+        new_workflow = Workflow(self.route, self.name)
+        new_workflow.setRuntime(self.frt)
+        new_workflow.params = self.params.copy()
+        return new_workflow
 
     def setRuntime(self, frt: FaasitRuntime):
         self.frt = frt
     def getRuntime(self):
         return self.frt
 
+    def setExecutor(self,executor_cls:Executor):
+        self._executor_cls = executor_cls
 
     def invokeHelper(self,fn_name):
         def invoke_fn(event:Dict):
@@ -60,8 +68,8 @@ class Workflow:
             return fn(*args,**kwargs)
         return functionCall
 
-    def getEvent(self) -> WorkflowInput:
-        return WorkflowInput(self)
+    def input(self) -> dict:
+        return self.frt.input()
     
     def build_function_param_dag(self,fn_ctl_node:ControlNode,key,ld:Lambda):
         if not isinstance(ld, Lambda):
@@ -98,7 +106,7 @@ class Workflow:
         """
         for the local code support
         """
-        fn_ctl_node = ControlNode(Workflow.funcHelper(fn))
+        fn_ctl_node = ControlNode(Workflow.funcHelper(fn), fn.__name__)
         self.dag.add_node(fn_ctl_node)
         for index,ld in enumerate(args):
             self.build_function_param_dag(fn_ctl_node,index,ld)
@@ -114,17 +122,12 @@ class Workflow:
         """
         return ld.becatch(self)
     
-    def execute(self,event:dict):
-        for key, ld in self.params.items():
-            if event.get(key) != None:
-                data_node = ld.getDataNode()
-                data_node.set_value(event[key])
-            elif ld.value != None:
-                data_node = ld.getDataNode()
-                data_node.set_value(ld.value)
-            else:
-                raise ValueError(f"missing parameter {key}")
-        return self.dag.run()
+    def execute(self):
+        if self._executor_cls==None:
+            executor = Executor(self.dag)
+        else:
+            executor = self._executor_cls(self.dag)
+        return executor.execute()
     def end_with(self,ld:Lambda):
         if not isinstance(ld, Lambda):
             ld = Lambda(ld)
@@ -134,7 +137,8 @@ class Workflow:
         self.dag.add_node(end_node)
         end_node.is_end_node = True
     
-    def validate(self):
-        return self.dag.validate()
     def __str__(self) -> str:
         return str(self.dag)
+
+    def valicate(self):
+        return self.dag
