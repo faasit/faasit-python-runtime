@@ -22,7 +22,10 @@ class RedisDB:
             logging.error(f"Failed to get key {key}")
             return None
         logging.info(f"Get key {key} succeed")
-        return pickle.loads(value)
+        try:
+            return pickle.loads(value)
+        except:
+            return value.decode('utf-8')
     def delete(self, key: str):
         r = redis.Redis(connection_pool=self._pool)
         if r.delete(key) == 0:

@@ -77,7 +77,7 @@ class AliyunRuntime(FaasitRuntime):
                 time.sleep(0.001)
                 if timeout > 0:
                     if time.time() - start_t > timeout / 1000: return None
-            return self.bucket.get_object(filename).read()
+            return self.bucket.get_object(filename).read().decode('utf-8')
 
         def list(self) -> List:
             return [sbj.key for sbj in self.bucket.list_objects_v2().object_list]
