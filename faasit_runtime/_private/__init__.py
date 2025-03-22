@@ -1,5 +1,3 @@
-from ..serverless_function import Metadata
-
 class FunctionConfig:
     def __init__(self, *args, **options):
         pass
@@ -30,6 +28,7 @@ class LocalFunction(Function):
         super().__init__(fn, config)
 
     def _transformfunction(self, fn):
+        from faasit_runtime.serverless_function import Metadata
         def local_function(md: Metadata):
             from ..runtime.local_runtime import LocalRuntime
             rt = LocalRuntime(md)
@@ -50,6 +49,7 @@ class KnativeFunction(Function):
     def __init__(self, fn, config: FunctionConfig = None):
         super().__init__(fn, config)
     def _transformfunction(self, fn):
+        from faasit_runtime.serverless_function import Metadata
         def kn_function(md: Metadata):
             from ..runtime.kn_runtime import KnativeRuntime
             rt = KnativeRuntime(md)
@@ -61,6 +61,7 @@ class LocalOnceFunction(Function):
         super().__init__(fn, config)
     def _transformfunction(self, fn):
         def localonce_function(data: dict):
+            from faasit_runtime.serverless_function import Metadata
             import uuid
             from ..runtime.local_once_runtime import LocalOnceRuntime
             from faasit_runtime import routeBuilder
@@ -75,6 +76,14 @@ class LocalOnceFunction(Function):
             result = fn(rt)
             return result
         return localonce_function
+class PKUFunction(Function):
+    def _transformfunction(self, fn):
+        from serverless_framework import Metadata
+        def pku_function(md: Metadata):
+            from ..runtime.pku_runtime import PKURuntime
+            rt = PKURuntime(md)
+            return fn(rt)
+        return pku_function
 
 __all__=[
     'FunctionConfig',
@@ -82,5 +91,6 @@ __all__=[
     'LocalFunction',
     'AliyunFunction',
     'KnativeFunction',
-    'LocalOnceFunction'
+    'LocalOnceFunction',
+    'PKUFunction'
 ]

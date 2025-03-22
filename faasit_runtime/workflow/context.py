@@ -46,5 +46,27 @@ class WorkflowContext:
                 workflow = self.generate()
                 return workflow.execute()
             return local_once_workflow
+        elif self._provider == 'pku':
+            def pku_workflow():
+                from ..runtime.local_once_runtime import LocalOnceRuntime # just for testing
+                from ..serverless_function import Metadata
+                metadata = Metadata('pku', {}, None, {}, 'invoke', None, None)
+                rt = LocalOnceRuntime(metadata)
+                self.set_runtime(rt)
+                workflow = self.generate()
+                dag_json = workflow.valicate()
+                res = {}
+                res['default_params'] = {}
+                res['DAG'] = {}
+                for stage, value in dag_json.items():
+                    pre = value['pre']
+                    params = value['params']
+                    if res['default_params'].get(stage) is None:
+                        res['default_params'][stage] = {}
+                    res['default_params'][stage].update(params)
+                    res['DAG'][stage] = pre
+                return res
+            return pku_workflow
+                
         else:
             raise NotImplementedError(f"provider {self._provider} is not supported yet")

@@ -1,5 +1,5 @@
 from serverless_framework import (
-    Metadata
+    Metadata,WorkerMetadata
 )
 from .faasit_runtime import (
     FaasitRuntime,
@@ -12,9 +12,11 @@ from typing import Dict, Optional
 
 
 class PKURuntime(FaasitRuntime):
-    def __init__(self, ft_metadata: FaasitRuntimeMetadata, metadata: Metadata):
+    def __init__(self, metadata: Metadata):
         self._input = metadata.params
         self._storage = self.PKUStorage(metadata)
+        self._metadata: WorkerMetadata = metadata
+        self._funcname = metadata.stage
 
     def input(self):
         return self._input
@@ -23,6 +25,8 @@ class PKURuntime(FaasitRuntime):
         return _out
 
     def call(self, fnName:str, fnParams: dict) -> dict:
+        for k,v in fnParams.items():
+            self._metadata.output([fnName], k, v, active_send=True)
         return
 
     def tell(self, fnName:str, fnParams: dict) -> dict:

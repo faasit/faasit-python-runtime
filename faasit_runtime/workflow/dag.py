@@ -254,6 +254,43 @@ class DAG:
                 result = node.ld.value
                 break
         return result
+    def validate(self):
+        res = {}
+        for node in self.nodes:
+            if isinstance(node, DataNode):
+                if node.pre_control_node:
+                    pre_ctl_name = node.pre_control_node._fn_name
+                    for ctl in node.succ_control_nodes:
+                        ctl: ControlNode
+                        suf_ctl_name = ctl._fn_name
+                        if res.get(suf_ctl_name) == None:
+                            res[suf_ctl_name] = {}
+                        if res[suf_ctl_name].get('pre') == None:
+                            res[suf_ctl_name]['pre'] = []
+                        if res[suf_ctl_name].get('params') == None:
+                            res[suf_ctl_name]['params'] = {}
+                        res[suf_ctl_name]['pre'].append(pre_ctl_name)
+                        # res[suf_ctl_name]['params'] = {ctl.ld_to_key[node.ld]: node.ld.value}
+                else:
+                    for ctl in node.succ_control_nodes:
+                        ctl: ControlNode
+                        suf_ctl_name = ctl._fn_name
+                        if res.get(suf_ctl_name) == None:
+                            res[suf_ctl_name] = {}
+                        if res[suf_ctl_name].get('pre') == None:
+                            res[suf_ctl_name]['pre'] = []
+                        if res[suf_ctl_name].get('params') == None:
+                            res[suf_ctl_name]['params'] = {}
+                        res[suf_ctl_name]['params'].update({ctl.ld_to_key[node.ld]: node.ld.value})   
+            if isinstance(node, ControlNode):
+                ctl_name = node._fn_name
+                if res.get(ctl_name) == None:
+                    res[ctl_name] = {}
+                if res[ctl_name].get('pre') == None:
+                    res[ctl_name]['pre'] = []
+                if res[ctl_name].get('params') == None:
+                    res[ctl_name]['params'] = {}
+        return res
 
 def duplicateDAG(dag:DAG):
     # new_workflow = dag.workflow_.copy()

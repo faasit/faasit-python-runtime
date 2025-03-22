@@ -20,6 +20,7 @@ from ._private import (
     AliyunFunction,
     KnativeFunction,
     LocalOnceFunction,
+    PKUFunction,
     Function
 )
 
@@ -97,6 +98,8 @@ def function(*args, **kwargs) -> Function:
             func = KnativeFunction(fn, fn_config)
         elif provider == 'local-once':
             func = LocalOnceFunction(fn, fn_config)
+        elif provider == 'pku':
+            func = PKUFunction(fn, fn_config)
         else:
             assert(func_cls != None, "wrapper is required for custom runtime")
             assert(issubclass(func_cls, Function), "wrapper must be subclass of Function")

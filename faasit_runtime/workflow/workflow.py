@@ -141,4 +141,4 @@ class Workflow:
         return str(self.dag)
 
     def valicate(self):
-        return self.dag
+        return self.dag.validate()

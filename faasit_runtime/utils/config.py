@@ -8,7 +8,7 @@ class WorkflowSchema(BaseModel):
 class FunctionContainerConfigSchema(BaseModel):
     funcName: str
     # one of the providers
-    provider: Literal['local', 'aliyun','knative','aws','local-once']
+    provider: Literal['local', 'aliyun','knative','aws','local-once','pku']
     workflow: WorkflowSchema
 
 def get_function_container_config():
