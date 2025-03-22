@@ -9,58 +9,57 @@ from .faasit_runtime import (
     InputType,
     FaasitRuntimeMetadata,
 )
-from ..workflow import RouteRunner
-from typing import Any, List
 import pickle
-import logging
+from typing import Any, List
+from ..serverless_function import Metadata
+from faasit_runtime.utils.logging import log
+import uuid
 
 class LocalOnceRuntime(FaasitRuntime):
     name: str = 'local-once'
-    def __init__(self, 
-                 data, 
-                 workflow_runner: RouteRunner = None, 
-                 metadata: FaasitRuntimeMetadata = None) -> None:
+    def __init__(self, metadata: Metadata) -> None:
         super().__init__()
-        self._input = data
-        self._workflow_runner = workflow_runner
-        self._metadata = metadata
+        self._input = metadata._params
+        # self._metadata = metadata
+        self._namespace = metadata._namespace
+        self._router = metadata._router
         local_store_dir = os.environ.get('LOCAL_STORAGE_DIR', './local_storage')
         self._storage = self.LocalStorage(local_store_dir)
 
-    def set_workflow(self, workflow_runner: RouteRunner):
-        self._workflow_runner = workflow_runner
-        return workflow_runner
 
     def input(self):
         return self._input
 
     def output(self, _out):
         return _out
+    
+    def _collect_metadata(self, params):
+        id = str(uuid.uuid4())
+        return Metadata(
+            id=id, 
+            params=params, 
+            namespace=self._namespace,
+            router=self._router,
+            request_type="invoke",
+            redis_db=None,
+            producer=None
+        )
+        return {
+            'id': id,
+            'params': params,
+            'namespace': self._namespace,
+            'router': self._router,
+            'type': 'invoke'
+        }
 
     def call(self, fnName:str, fnParams: InputType) -> CallResult:
-        fnParams: CallParams = CallParams(
-            input=fnParams
-        )
-        event = fnParams.input
-        seq = fnParams.seq
-        if self._workflow_runner == None:
-            raise Exception("workflow is not defined")
-        metadata = self.helperCollectMetadata("call", fnName, fnParams)
-
-        callerName = self._metadata.funcName
-        print(f"[function call] {callerName} -> {fnName}")
-        print(f"[call params] {event}")
-
-        handler = self._workflow_runner.route(fnName)
-
-        result = handler(event, self._workflow_runner, metadata)
-
-        from ..durable import DurableWaitingResult
-        if isinstance(result, DurableWaitingResult):
-            result = result.waitResult()
-            next(result)
-
+        fn = self._router.get(fnName)
+        if fn is None:
+            raise ValueError(f"Function {fnName} not found in router")
+        metadata = self._collect_metadata(params=fnParams)
+        result = fn(fnParams)
         return result
+        
 
     def tell(self, fnName:str, fnParams: dict) -> Any:
         fnParams:TellParams = TellParams(**fnParams)
@@ -118,10 +117,9 @@ class LocalOnceRuntime(FaasitRuntime):
             with open(file_path, "wb") as f:
                 f.write(pickle.dumps(data))
                 f.flush()
-            logging.debug(f"[storage put] Put data into {file_path} successfully.")
+            log.debug(f"[storage put] Put data into {file_path} successfully.")
             self._release_filelock(file_path)
 
-        @check_and_make_dir
         def get(self, filename, timeout = -1) -> bytes:
             file_path = os.path.join(self.storage_path,filename)
             start_t = time.time()
@@ -130,26 +128,29 @@ class LocalOnceRuntime(FaasitRuntime):
                 if timeout > 0:
                     if time.time() - start_t > timeout / 1000: return None
             self._wait_filelock(file_path)
-            with open(file_path, "rb") as f:
-                try:
-                    data = pickle.load(f)
-                except:
+            while True:
+                with open(file_path, "rb") as f:
                     data = f.read()
-                logging.debug(f"[storage get] Get data from {file_path} successfully. Value is {data}")
-                return data
+                data_len = len(data)
+                if data_len == 0:
+                    print(f"[storage get] read error of {file_path}, retry ...")
+                    time.sleep(0.001)
+                    continue
+                break
+            try:
+                return pickle.loads(data)
+            except:
+                return data.decode('utf-8')
 
-        @check_and_make_dir
         def list(self) -> List:
             return [f for f in os.listdir(self.storage_path) if not f.endswith(".lock")]
 
-        @check_and_make_dir
         def exists(self, filename: str) -> bool:
-            file_path = os.path.join(self.storage_path,filename)
+            file_path = self.storage_path + filename
             return os.path.exists(file_path)
 
-        @check_and_make_dir
         def delete(self, filename: str) -> None:
-            file_path = os.path.join(self.storage_path,filename)
+            file_path = self.storage_path + filename
             if os.path.exists(file_path):
                 self._acquire_filelock(file_path)
                 os.remove(file_path)

@@ -8,10 +8,12 @@ class Executor:
         self.dag = duplicateDAG(dag)
     def execute(self):
         while not self.dag.hasDone():
+            log.info("DAG is running")
             task = []
             for node in self.dag.get_nodes():
                 if node.done:
                     continue
+                log.info("Node: "+node.describe())
                 if isinstance(node, DataNode):
                     if node.is_ready():
                         task.append(node)
@@ -33,6 +35,7 @@ class Executor:
                     log.info(f"{node.describe()} calculate {r_node.describe()}")
                     if r_node.is_ready():
                         task.append(r_node)
+        log.info("DAG has done")
         result = None
         for node in self.dag.get_nodes():
             if isinstance(node, DataNode) and node.is_end_node:

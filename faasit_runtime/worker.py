@@ -68,6 +68,7 @@ def invoke():
             logger.info(f"Invoking the lambda function with metadata: {metadata}")
 
             result = lambda_handler(metadata)
+            logger.info(f"Lambda function invoked successfully: {result}")
             return jsonify({
                 'status': 'ok',
                 'data': result
