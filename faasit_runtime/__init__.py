@@ -1,5 +1,3 @@
-from .durable import durable_helper
-
 from .runtime import (
     FaasitRuntime, 
     FaasitResult,
@@ -21,6 +19,7 @@ from ._private import (
     KnativeFunction,
     LocalOnceFunction,
     PKUFunction,
+    DurableFunction,
     Function
 )
 
@@ -72,10 +71,22 @@ def transformfunction(fn: type_Function) -> type_Function:
 
 routeBuilder = RouteBuilder()
 
-def durable(fn):
-    new_func = durable_helper(fn)
-    routeBuilder.func(fn.__name__).set_handler(new_func)
-    return new_func
+def durable(*args, **kwargs) -> Function:
+    def __durable(fn) -> Function:
+        config = get_function_container_config()
+        provider = kwargs.get('provider', config['provider'])
+        fn_name = kwargs.get('name', fn.__name__)
+        cpu = kwargs.get('cpu', 0.5)
+        memory = kwargs.get('memory', 128)
+        fn_config = FunctionConfig(provider=provider, cpu=cpu, memory=memory, name=fn_name)
+        func = DurableFunction(fn, fn_config)
+        routeBuilder.func(fn_name).set_handler(func.export())
+        return func
+    if len(args) == 1 and len(kwargs) == 0:
+        fn = args[0]
+        return __durable(fn)
+    else:
+        return __durable
 
 
 def function(*args, **kwargs) -> Function:

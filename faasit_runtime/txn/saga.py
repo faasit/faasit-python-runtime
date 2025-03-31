@@ -67,6 +67,7 @@ def WithSaga(
             try_done,finish_done = manager.addTask(task)
             executors.append((try_done,finish_done))
         result:SagaResult = recoverFn(executors,payload)
+        manager.finalize()
         return result
     return exec
 

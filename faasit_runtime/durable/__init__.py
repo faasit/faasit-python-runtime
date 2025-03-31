@@ -1,27 +1,25 @@
 from ..utils import (
     config
 )
-from .result import (
-    DurableWaitingResult
-)
-from .runtime import (
-    DurableRuntime
-)
 
 def createOrchestratorScopedId(orcheId:str):
     return f"orchestrator::__state__::{orcheId}"
 
 def localonce(fn):
-    from .models import localonce_durable
+    from .models.localonce import localonce_durable
     return localonce_durable(fn)
 
 def local(fn):
     return
 
 def pku(fn):
-    from .models import pku_durable
+    from .models.pku import pku_durable
     return pku_durable(fn)
 
+
+def kn(fn):
+    from .models.knative import kn_durable
+    return kn_durable(fn)
 
 def durable_helper(fn):
     conf = config.get_function_container_config()
@@ -30,6 +28,7 @@ def durable_helper(fn):
         'local-once': localonce,
         'local': local,
         'pku': pku,
+        'knative': kn,
     }
     try:
         return providers[provider](fn)
@@ -37,7 +36,5 @@ def durable_helper(fn):
         raise ValueError(f"Invalid provider {provider}")
 
 __all__ = [
-    "durable_helper",
-    "DurableWaitingResult",
-    "DurableRuntime"
+    "durable_helper"
 ]

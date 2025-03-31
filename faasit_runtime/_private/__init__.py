@@ -84,6 +84,13 @@ class PKUFunction(Function):
             rt = PKURuntime(md)
             return fn(rt)
         return pku_function
+    
+class DurableFunction(Function):
+    def __init__(self, fn, config = None):
+        super().__init__(fn, config)
+    def _transformfunction(self, fn):
+        from ..durable import durable_helper
+        return durable_helper(fn)
 
 __all__=[
     'FunctionConfig',
@@ -92,5 +99,6 @@ __all__=[
     'AliyunFunction',
     'KnativeFunction',
     'LocalOnceFunction',
-    'PKUFunction'
+    'PKUFunction',
+    'DurableFunction',
 ]
