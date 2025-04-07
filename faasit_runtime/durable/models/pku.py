@@ -44,8 +44,8 @@ def pku_durable(fn):
             lambdaId = params['lambdaId']
         except KeyError as e:
             raise ValueError("Durable function `instanceId` & `lambdaId` is required")
-        PkuRuntime = load_runtime('pku')
-        frt = PkuRuntime(createFaasitRuntimeMetadata('stage'), md)
+        from faasit_runtime.runtime.pku_runtime import PKURuntime
+        frt = PKURuntime(md)
         client = getClient(instanceId)
         state, init = DurableFunctionState.load(client)
         actorState = ActorState(lambdaId, instanceId, md)
