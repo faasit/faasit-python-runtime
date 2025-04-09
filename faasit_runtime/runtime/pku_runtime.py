@@ -26,7 +26,7 @@ class PKURuntime(FaasitRuntime):
 
     def call(self, fnName:str, fnParams: dict) -> dict:
         for k,v in fnParams.items():
-            self._metadata.output([fnName], k, v, active_send=True)
+            self._metadata.output([fnName], k, v, active_send=True, use_stream=True)
         return
 
     def tell(self, fnName:str, fnParams: dict) -> dict:
@@ -61,7 +61,8 @@ class PKURuntime(FaasitRuntime):
             timeout = opts.get('timeout')
             active_pull = opts.get('active_pull', True)
             tcp_direct = opts.get('tcp_direct', True)
-            return self._metadata.get_object(src_stage, filename, timeout=timeout, active_pull=active_pull, tcp_direct=tcp_direct)
+            local_cache = opts.get('local_cache', False)
+            return self._metadata.get_object(src_stage, filename, timeout=timeout, active_pull=active_pull, tcp_direct=tcp_direct,local_cache=local_cache)
 
         def get_assert_exist(self, filename: str, **opts):
             src_state = opts.get('src_state')
