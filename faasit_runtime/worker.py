@@ -22,16 +22,6 @@ redis_port = int(os.getenv('REDIS_PORT', 6379))
 
 redis_proxy = RedisDB(host=redis_host, port=redis_port)
 
-def startup_rocketmq():
-    name_server_address = os.getenv('ROCKETMQ_NAME_SERVER_ADDRESS', '10.0.0.101')
-    port = int(os.getenv('ROCKETMQ_PORT', 9876))
-    name_and_topic = os.getenv('FUNC_NAME', 'unknown')
-    from .storage.rocketmq import RocketMQProducer
-    producer = RocketMQProducer(name_server_address, port, name_and_topic)
-    logger.info(f"RocketMQ producer started")
-    return producer
-
-producer = startup_rocketmq()
 
 import queue
 task_queue = queue.Queue()
@@ -84,7 +74,6 @@ def invoke():
                 router=router,
                 request_type=request_type,
                 redis_db=redis_proxy,
-                producer=producer
             )
             logger.info(f"Invoking the lambda function with metadata: {metadata}")
 
@@ -115,7 +104,6 @@ def invoke():
                 router=router,
                 request_type=request_type,
                 redis_db=redis_proxy,
-                producer=producer
             )
             logger.info(f"Tell the lambda function with metadata: {metadata}")
             task_queue.put(metadata)

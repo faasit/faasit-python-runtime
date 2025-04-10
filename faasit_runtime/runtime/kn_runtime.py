@@ -11,7 +11,6 @@ import uuid
 from faasit_runtime.serverless_function import Metadata
 from faasit_runtime.utils.logging import log
 from faasit_runtime.storage import RedisDB
-from faasit_runtime.storage.rocketmq import RocketMQProducer
 
 
 class KnativeRuntime(FaasitRuntime):
@@ -24,7 +23,6 @@ class KnativeRuntime(FaasitRuntime):
         self._namespace = metadata._namespace
         self._router:dict = metadata._router
         self._type = metadata._type
-        self._msg_sender: RocketMQProducer = metadata._rocketmq_producer
         self._storage = self.KnStorage(redis_db=self._redis_db)
     
     @property
