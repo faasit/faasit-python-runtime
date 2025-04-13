@@ -25,7 +25,7 @@ class RedisDB:
         try:
             return pickle.loads(value)
         except:
-            return value.decode('utf-8')
+            return value
     def delete(self, key: str):
         r = redis.Redis(connection_pool=self._pool)
         if r.delete(key) == 0:

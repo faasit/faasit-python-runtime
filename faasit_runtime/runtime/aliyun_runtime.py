@@ -22,10 +22,14 @@ def helper_invoke_aliyun_function(fnName: str, event: Any):
     config.endpoint = f"{os.environ['ALIBABA_CLOUD_PRODUCT_CODE']}.{os.environ['ALIBABA_CLOUD_REGION']}.fc.aliyuncs.com"
     
     client = FC_Open20210406Client(config)
+    headers = fc__open20210406_models.InvokeFunctionHeaders()
+    runtime = util_models.RuntimeOptions(
+        read_timeout=100000
+    )
     invoke_func_req = fc__open20210406_models.InvokeFunctionRequest(
         body=UtilClient.to_bytes(event or {}),
     )
-    return client.invoke_function('faasit', fnName, invoke_func_req)
+    return client.invoke_function_with_options('faasit', fnName, invoke_func_req, headers, runtime)
 
 class AliyunRuntime(FaasitRuntime):
     name: str = 'aliyun'
@@ -77,7 +81,7 @@ class AliyunRuntime(FaasitRuntime):
                 time.sleep(0.001)
                 if timeout > 0:
                     if time.time() - start_t > timeout / 1000: return None
-            return self.bucket.get_object(filename).read().decode('utf-8')
+            return self.bucket.get_object(filename).read()
 
         def list(self) -> List:
             return [sbj.key for sbj in self.bucket.list_objects_v2().object_list]
