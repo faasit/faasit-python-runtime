@@ -8,6 +8,7 @@ from alibabacloud_tea_util.client import Client as UtilClient
 from typing import Any, List
 import os
 import json
+import pickle
 from dotenv import load_dotenv,find_dotenv
 from faasit_runtime.runtime.faasit_runtime import StorageMethods
 import oss2
@@ -69,6 +70,7 @@ class AliyunRuntime(FaasitRuntime):
                             os.environ['ALIBABA_CLOUD_OSS_BUCKET_NAME'])
 
         def put(self, filename, data: bytes) -> None:
+            data = pickle.dumps(data)
             res = self.bucket.put_object(filename, data)
             if 200 <= res.resp.status < 300:
                 print(f"[storage put] Put data into {filename} successfully.")
@@ -81,7 +83,7 @@ class AliyunRuntime(FaasitRuntime):
                 time.sleep(0.001)
                 if timeout > 0:
                     if time.time() - start_t > timeout / 1000: return None
-            return self.bucket.get_object(filename).read()
+            return pickle.loads(self.bucket.get_object(filename).read())
 
         def list(self) -> List:
             return [sbj.key for sbj in self.bucket.list_objects_v2().object_list]
