@@ -71,7 +71,7 @@ class LocalOnceFunction(Function):
                 route_dict[function.name] = function.handler
             for workflow in route.workflows:
                 route_dict[workflow.name] = function.handler
-            metadata = Metadata(str(uuid.uuid4()), data, None, route_dict, 'invoke', None, None)
+            metadata = Metadata(str(uuid.uuid4()), data, None, route_dict, 'invoke', None)
             rt = LocalOnceRuntime(metadata)
             result = fn(rt)
             return result

@@ -100,7 +100,7 @@ def function(*args, **kwargs) -> Function:
         
         func_cls = kwargs.get('wrapper', None)
         Function
-        fn_config = FunctionConfig(provider=provider, cpu=cpu, memory=memory, name=fn_name)
+        fn_config = FunctionConfig(**kwargs)
         if provider == 'local':
             func = LocalFunction(fn, fn_config)
         elif provider == 'aliyun':
@@ -112,8 +112,8 @@ def function(*args, **kwargs) -> Function:
         elif provider == 'pku':
             func = PKUFunction(fn, fn_config)
         else:
-            assert(func_cls != None, "wrapper is required for custom runtime")
-            assert(issubclass(func_cls, Function), "wrapper must be subclass of Function")
+            assert func_cls != None, "wrapper is required for custom runtime"
+            assert issubclass(func_cls, Function), "wrapper must be subclass of Function"
             func = func_cls(fn, fn_config)
         routeBuilder.func(fn_name).set_handler(func.export())
         return func
