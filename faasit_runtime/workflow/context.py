@@ -50,7 +50,7 @@ class WorkflowContext:
             def pku_workflow():
                 from ..runtime.local_once_runtime import LocalOnceRuntime # just for testing
                 from ..serverless_function import Metadata
-                metadata = Metadata('pku', {}, None, {}, 'invoke', None, None)
+                metadata = Metadata('pku', {}, None, {}, 'invoke', None)
                 rt = LocalOnceRuntime(metadata)
                 self.set_runtime(rt)
                 workflow = self.generate()
