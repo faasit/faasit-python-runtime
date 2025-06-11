@@ -31,6 +31,10 @@ class PKURuntime(FaasitRuntime):
 
     def tell(self, fnName:str, fnParams: dict) -> dict:
         return
+    
+    def log(self, title: str, message: str, result: str):
+        # PKU Runtime does not support logging
+        self._metadata.log(title, message, result)
 
     def get_metadata(self) -> FaasitRuntimeMetadata:
         return self.metadata

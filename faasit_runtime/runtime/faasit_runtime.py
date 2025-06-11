@@ -109,6 +109,9 @@ class FaasitRuntime(ABC):
     def tell(self, fnName:str, fnParams: TellParams) -> Awaitable[TellResult]:
         pass
 
+    def log(self, title:str, message: str, result: str):
+        pass
+
     @property
     def storage(self) -> StorageMethods:
         return self._storage
