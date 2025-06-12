@@ -109,6 +109,8 @@ class FaasitRuntime(ABC):
     def tell(self, fnName:str, fnParams: TellParams) -> Awaitable[TellResult]:
         pass
 
+    @classmethod
+    @abstractmethod
     def log(self, title:str, message: str, result: str):
         pass
 
