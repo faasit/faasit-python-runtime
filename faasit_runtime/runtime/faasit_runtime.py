@@ -110,7 +110,6 @@ class FaasitRuntime(ABC):
         pass
 
     @classmethod
-    @abstractmethod
     def log(self, title:str, message: str, result: str):
         pass
 

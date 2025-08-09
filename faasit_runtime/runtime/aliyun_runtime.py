@@ -83,7 +83,7 @@ class AliyunRuntime(FaasitRuntime):
                 time.sleep(0.001)
                 if timeout > 0:
                     if time.time() - start_t > timeout / 1000: return None
-            return pickle.loads(self.bucket.get_object(filename).read())
+            return str(pickle.loads(self.bucket.get_object(filename).read())).encode('utf-8')
 
         def list(self) -> List:
             return [sbj.key for sbj in self.bucket.list_objects_v2().object_list]
