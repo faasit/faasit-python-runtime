@@ -43,6 +43,8 @@ class AliyunRuntime(FaasitRuntime):
     def input(self):
         self.event = self.event.decode('utf-8')
         self.event = self.event.replace("'", '"')
+        self.event = self.event.replace("True", "true")
+        print(self.event)
         return json.loads(self.event)
 
     def output(self, data):
