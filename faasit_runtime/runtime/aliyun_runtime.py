@@ -59,8 +59,12 @@ class AliyunRuntime(FaasitRuntime):
         result = result.replace("'", '"')
         return json.loads(result)
 
-    async def tell(self):
-        pass
+    def tell(self, fn_name:str, event: Any):
+        self.call(fn_name, event)
+        return {
+            "status": "ok",
+            "message": "Lambda function told successfully"
+        }
 
     class AliyunStorage(StorageMethods):
         def __init__(self):
