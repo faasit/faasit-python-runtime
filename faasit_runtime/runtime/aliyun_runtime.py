@@ -80,11 +80,8 @@ class AliyunRuntime(FaasitRuntime):
                 print(res)
 
         def get(self, filename, timeout = -1) -> bytes:
-            start_t = time.time()
-            while not self.bucket.object_exists(filename):
-                time.sleep(0.001)
-                if timeout > 0:
-                    if time.time() - start_t > timeout / 1000: return None
+            if not self.bucket.object_exists(filename):
+                return None
             return str(pickle.loads(self.bucket.get_object(filename).read())).encode('utf-8')
 
         def list(self) -> List:

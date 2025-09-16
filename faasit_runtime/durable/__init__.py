@@ -21,6 +21,10 @@ def kn(fn):
     from .models.knative import kn_durable
     return kn_durable(fn)
 
+def ali(fn):
+    from .models.ali import ali_durable
+    return ali_durable(fn)
+
 def durable_helper(fn):
     conf = config.get_function_container_config()
     provider = conf['provider']
@@ -29,6 +33,8 @@ def durable_helper(fn):
         'local': local,
         'pku': pku,
         'knative': kn,
+        'k8s': kn,
+        "aliyun": ali
     }
     try:
         return providers[provider](fn)
