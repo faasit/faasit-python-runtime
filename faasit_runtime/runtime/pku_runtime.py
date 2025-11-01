@@ -52,7 +52,7 @@ class PKURuntime(FaasitRuntime):
                 self.tcp_direct = tcp_direct
                 self.timeout = timeout
 
-        def __init__(self, metadata: Metadata):
+        def __init__(self, metadata: WorkerMetadata):
             super().__init__()
             self._metadata = metadata
         def put(self, filename: str, data: bytes, **opts) -> None:
@@ -66,14 +66,14 @@ class PKURuntime(FaasitRuntime):
             active_pull = opts.get('active_pull', True)
             tcp_direct = opts.get('tcp_direct', True)
             local_cache = opts.get('local_cache', False)
-            return self._metadata.get_object(src_stage, filename, timeout=timeout, active_pull=active_pull, tcp_direct=tcp_direct,local_cache=local_cache)
+            return self._metadata.get_object(src_stage, filename, **opts)
 
         def get_assert_exist(self, filename: str, **opts):
             src_state = opts.get('src_state')
             timeout = opts.get('timeout')
             active_pull = opts.get('active_pull')
             tcp_direct = opts.get('tcp_direct')
-            obj = self._metadata.get_existed_object(src_state, filename, timeout=timeout, active_pull=active_pull, tcp_direct=tcp_direct)
+            obj = self._metadata.get_existed_object(src_state, filename, **opts)
             return obj
 
         def list(self) -> list:
