@@ -83,9 +83,9 @@ class KnativeRuntime(FaasitRuntime):
     class KnStorage(StorageMethods):
         def __init__(self, redis_db: RedisDB):
             self._redis_db = redis_db
-        def get(self, filename: str):
+        def get(self, filename: str, *_, **__):
             return self._redis_db.get(filename)
-        def put(self, filename: str, value):
+        def put(self, filename: str, value, *_, **__):
             return self._redis_db.set(filename, value)
         def delete(self, filename: str):
             return self._redis_db.delete(filename)
