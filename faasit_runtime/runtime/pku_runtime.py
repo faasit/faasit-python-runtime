@@ -56,17 +56,10 @@ class PKURuntime(FaasitRuntime):
             super().__init__()
             self._metadata = metadata
         def put(self, filename: str, data: bytes, **opts) -> None:
-            dest_stages = opts.get('dest_stages')
-            active_send = opts.get('active_send', False)
-            return self._metadata.output(dest_stages, filename, data, active_send=active_send)
+            return self._metadata.output(key=filename, obj=data, **opts)
 
         def get(self, filename: str, **opts) -> bytes:
-            src_stage = opts.get('src_stage')
-            timeout = opts.get('timeout')
-            active_pull = opts.get('active_pull', True)
-            tcp_direct = opts.get('tcp_direct', True)
-            local_cache = opts.get('local_cache', False)
-            return self._metadata.get_object(src_stage, filename, **opts)
+            return self._metadata.get_object(key=filename, **opts)
 
         def get_assert_exist(self, filename: str, **opts):
             src_state = opts.get('src_state')
